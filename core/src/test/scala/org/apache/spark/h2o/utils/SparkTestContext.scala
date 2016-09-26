@@ -18,18 +18,16 @@
 package org.apache.spark.h2o.utils
 
 import io.netty.util.internal.logging.{InternalLoggerFactory, Slf4JLoggerFactory}
-import org.apache.spark.h2o.H2OContext
+import org.apache.spark.h2o.{H2OConf, H2OContext}
 import org.apache.spark.sql.{SQLContext, SparkSession}
 import org.apache.spark.{SparkConf, SparkContext}
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Suite}
-import org.apache.spark.h2o.{H2OConf, H2OContext}
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Suite}
 
 /**
   * Helper trait to simplify initialization and termination of Spark/H2O contexts.
   *
   */
-trait SparkTestContext extends BeforeAndAfterEach with BeforeAndAfterAll { self: Suite =>
+trait SparkTestContext extends BeforeAndAfterEach with BeforeAndAfterAll with ExternalClusterModeTestHelper{ self: Suite =>
 
   @transient var sc: SparkContext = _
   @transient var hc: H2OContext = _

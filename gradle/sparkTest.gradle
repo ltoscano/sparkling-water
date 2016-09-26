@@ -1,6 +1,9 @@
+apply from: "$rootDir/gradle/utils.gradle"
+
 // Setup test environment for Spark
 test {
     // Test environment
+    systemProperty "spark.ext.h2o.backend.cluster.mode", detectClusterMode()
     systemProperty "spark.testing", "true"
     systemProperty "spark.ext.h2o.node.log.dir", new File(project.getBuildDir(), "h2ologs-test/nodes")
     systemProperty "spark.ext.h2o.client.log.dir", new File(project.getBuildDir(), "h2ologs-test/client")
