@@ -60,14 +60,45 @@ class H2OConf(object):
         self._jconf.setFlatFilePath(flatfile_path)
         return self
 
-    def set_h2o_cloud(self, ip, port):
+    def set_h2o_cluster(self, ip, port):
         self._jconf.setH2OCluster(ip, port)
         return self
 
+    def set_yarn_queue(self, queue_name):
+        self._jconf.setYARNQueue(queue_name)
+        return self
+
+    def set_h2o_driver_path(self, driver_path):
+        self._jconf.setH2ODriverPath(driver_path)
+        return self
+
+    def set_hdfs_output_dir(self, hdfs_output_dir):
+        self._jconf.setHDFSOutputDir(hdfs_output_dir)
+        return self
+
+    def set_mapper_xmx(self, mem):
+        self._jconf.setMapperXmx(mem)
+        return self
+
     # getters
+
+    def h2o_cluster(self):
+        return self._get_option(self._jconf.h2oCluster)
+
+    def yarn_queue(self):
+        return self._get_option(self._jconf.YARNQueue)
+
+    def h2o_driver_path(self):
+        return self._get_option(self._jconf.h2oDriverPath)
+
+    def hdfs_output_dir(self):
+        return self._get_option(self._jconf.HDFSOutputDir)
+
+    def mapperXmx(self):
+        return self._get_option(self._jconf.mapperXmx)
+
     def cloud_name(self):
         return self._get_option(self._jconf.cloudName())
-
 
     def num_of_external_h2o_nodes(self):
         return self._get_option(self._jconf.numOfExternalH2ONodes())

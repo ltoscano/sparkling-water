@@ -124,7 +124,7 @@ class H2OContext(object):
 
     def stop(self):
         warnings.warn("H2OContext stopping is not yet supported...")
-        #self._jhc.stop(False)
+        self._jhc.stop(False)
 
     def __str__(self):
         if self.is_initialized:
