@@ -19,9 +19,11 @@ package org.apache.spark.h2o.converters
 
 import org.apache.spark.TaskContext
 import org.apache.spark.h2o._
+import org.apache.spark.h2o.backends.external.{ExternalReadConverterContext, ExternalWriteConverterContext}
 import org.apache.spark.h2o.backends.internal.{InternalReadConverterContext, InternalWriteConverterContext}
 import org.apache.spark.h2o.utils.NodeDesc
-import water.{DKV, Key}
+import org.apache.spark.sql.types._
+import water.{DKV, ExternalFrameReader, Key}
 
 import scala.collection.immutable
 import scala.collection.mutable.ListBuffer
@@ -84,7 +86,8 @@ private[converters] trait ConverterUtils {
 
     // prepare rdd and required metadata based on the used backend
     val (preparedRDD, uploadPlan) = if(hc.getConf.runsInExternalClusterMode){
-      throw new NotImplementedError("Not implemented at the moment")
+      val res = ExternalWriteConverterContext.scheduleUpload[T](rdd)
+      (res._1, Some(res._2))
     }else{
       (rdd, None)
     }
@@ -110,7 +113,7 @@ object ConverterUtils extends ConverterUtils {
   def getWriteConverterContext(uploadPlan: Option[immutable.Map[Int, NodeDesc]],
                                partitionId: Int): WriteConverterContext = {
     val converterContext = if (uploadPlan.isDefined) {
-      throw new NotImplementedError("Not implemented at the moment")
+      new ExternalWriteConverterContext(uploadPlan.get(partitionId))
     } else {
       new InternalWriteConverterContext()
     }
@@ -120,7 +123,7 @@ object ConverterUtils extends ConverterUtils {
   def getReadConverterContext(keyName: String, chunkIdx: Int,
                               extra: Option[ExternalBackendInfo]): ReadConverterContext = {
     val converterContext = if (extra.isDefined) { // metainfo external cluster is not empty => use external cluster
-      throw new NotImplementedError("Not implemented at the moment")
+      new ExternalReadConverterContext(keyName, chunkIdx, extra.get.chksLocation(chunkIdx), extra.get.expectedTypes, extra.get.selectedColumnIndices)
     } else {
       new InternalReadConverterContext(keyName, chunkIdx)
     }
@@ -153,7 +156,29 @@ object ConverterUtils extends ConverterUtils {
     if(!isExternalBackend){
       None
     }else {
-      throw new NotImplementedError("Not implemented at the moment")
+      typeOf[T] match {
+        case t if t =:= typeOf[DataType] =>
+          Some(types.map {
+            case ByteType => ExternalFrameReader.EXPECTED_INT
+            case ShortType => ExternalFrameReader.EXPECTED_INT
+            case IntegerType => ExternalFrameReader.EXPECTED_INT
+            case LongType => ExternalFrameReader.EXPECTED_INT
+            case FloatType => ExternalFrameReader.EXPECTED_INT
+            case DoubleType => ExternalFrameReader.EXPECTED_DOUBLE
+            case BooleanType => ExternalFrameReader.EXPECTED_INT
+            case StringType => ExternalFrameReader.EXPECTED_STRING
+            case TimestampType => ExternalFrameReader.EXPECTED_INT
+          })
+        case t if t =:= typeOf[Class[_]] =>
+          Some(types.map {
+            case q if q == classOf[Integer] => ExternalFrameReader.EXPECTED_INT
+            case q if q == classOf[java.lang.Long] => ExternalFrameReader.EXPECTED_INT
+            case q if q == classOf[java.lang.Double] => ExternalFrameReader.EXPECTED_DOUBLE
+            case q if q == classOf[java.lang.Float] => ExternalFrameReader.EXPECTED_INT
+            case q if q == classOf[java.lang.Boolean] => ExternalFrameReader.EXPECTED_INT
+            case q if q == classOf[String] => ExternalFrameReader.EXPECTED_STRING
+          })
+      }
     }
 }
 

@@ -36,6 +36,9 @@ class H2OConf(object):
         self._jconf.setCloudName(cloud_name)
         return self
 
+    def set_num_of_external_h2o_nodes(self, num_of_external_h2o_nodes):
+        self._jconf.setNumOfExternalH2ONodes(num_of_external_h2o_nodes)
+        return self
 
     def set_internal_cluster_mode(self):
         self._jconf.setInternalClusterMode()
@@ -57,9 +60,17 @@ class H2OConf(object):
         self._jconf.setFlatFilePath(flatfile_path)
         return self
 
+    def set_h2o_cloud(self, ip, port):
+        self._jconf.setH2OCluster(ip, port)
+        return self
+
     # getters
     def cloud_name(self):
         return self._get_option(self._jconf.cloudName())
+
+
+    def num_of_external_h2o_nodes(self):
+        return self._get_option(self._jconf.numOfExternalH2ONodes())
 
     def flatfile_path(self):
         return self._get_option(self._jconf.flatFilePath())
@@ -130,7 +141,7 @@ class H2OConf(object):
 
     def client_iced_dir(self):
         return self._get_option(self._jconf.clientIcedDir())
-    
+
     def jks(self):
         return self._get_option(self._jconf.jks())
 
@@ -148,7 +159,7 @@ class H2OConf(object):
 
     def user_name(self):
         return self._get_option(self._jconf.userName())
-    
+
     def scala_int_default_num(self):
         return self._jconf.scalaIntDefaultNum()
 

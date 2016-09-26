@@ -21,6 +21,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 import org.apache.spark._
 import org.apache.spark.h2o.backends.SparklingBackend
+import org.apache.spark.h2o.backends.external.ExternalH2OBackend
 import org.apache.spark.h2o.backends.internal.InternalH2OBackend
 import org.apache.spark.h2o.converters._
 import org.apache.spark.h2o.utils.{H2OContextUtils, LogUtil, NodeDesc}
@@ -74,7 +75,11 @@ class H2OContext private (@(transient @param @field) val sparkContext: SparkCont
 
 
   /** Used backend */
-  @transient private val backend: SparklingBackend = new InternalH2OBackend(this)
+  @transient private val backend: SparklingBackend = if(conf.runsInExternalClusterMode){
+    new ExternalH2OBackend(this)
+  }else{
+    new InternalH2OBackend(this)
+  }
 
 
   // Check Spark and H2O environment for general arguments independent on backend used and
