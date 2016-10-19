@@ -134,9 +134,9 @@ class ExternalH2OBackend(val hc: H2OContext) extends SparklingBackend with Exter
       // kill the job
       Seq[String]("yarn", "application", "-kill", yarnAppId).mkString(" ").!
 
-      if (stopSparkContext) hc.sparkContext.stop()
-      H2O.orderlyShutdown(1000)
-      H2O.exit(0)
+      //if (stopSparkContext) hc.sparkContext.stop()
+      //H2O.orderlyShutdown(1000)
+      //H2O.exit(0)
     }
   }
 
