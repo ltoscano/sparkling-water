@@ -20,37 +20,39 @@ package org.apache.spark.h2o.backends.external
 import org.apache.spark.h2o._
 import org.apache.spark.h2o.converters.WriteConverterContext
 import org.apache.spark.h2o.utils.NodeDesc
-import water.ExternalFrameWriter
+import water.ExternalFrameWriterClient
 
 class ExternalWriteConverterContext(nodeDesc: NodeDesc) extends ExternalBackendUtils with WriteConverterContext {
 
   val socketChannel = ConnectionToH2OHelper.getOrCreateConnection(nodeDesc)
-  var rowCounter: Long = 0
-  val externalFrameWriter = new ExternalFrameWriter(socketChannel)
+  val externalFrameWriter = new ExternalFrameWriterClient(socketChannel)
 
-  override def numOfRows: Long = rowCounter
   /**
     * This method closes the communication after the chunks have been closed
     */
   override def closeChunks(): Unit = {
-    externalFrameWriter.closeChunks()
+    externalFrameWriter.waitUntilAllWritten()
     ConnectionToH2OHelper.putAvailableConnection(nodeDesc, socketChannel)
   }
 
   /**
     * Initialize the communication before the chunks are created
     */
-  override def createChunks(keystr: String, vecTypes: Array[Byte], chunkId: Int): Unit = {
-    externalFrameWriter.createChunks(keystr, vecTypes, chunkId)
+  override def createChunks(keystr: String, expectedTypes: Array[Byte], chunkId: Int, totalNumOfRows: Int): Unit = {
+    externalFrameWriter.createChunks(keystr, expectedTypes, chunkId, totalNumOfRows)
   }
 
-  override def put(columnNum: Int, n: Number) = externalFrameWriter.put(columnNum, n.doubleValue())
-  override def put(columnNum: Int, n: Boolean) = externalFrameWriter.put(columnNum, n)
-  override def put(columnNum: Int, n: java.sql.Timestamp) = externalFrameWriter.put(columnNum, n)
-  override def put(columnNum: Int, n: String) = externalFrameWriter.put(columnNum, n)
-  override def putNA(columnNum: Int) = externalFrameWriter.putNA(columnNum)
-
-  override def increaseRowCounter(): Unit = rowCounter = rowCounter + 1
+  override def put(colIdx: Int, data: Boolean) = externalFrameWriter.sendBoolean(data)
+  override def put(colIdx: Int, data: Byte) = externalFrameWriter.sendByte(data)
+  override def put(colIdx: Int, data: Char) = externalFrameWriter.sendChar(data)
+  override def put(colIdx: Int, data: Short) = externalFrameWriter.sendShort(data)
+  override def put(colIdx: Int, data: Int) = externalFrameWriter.sendInt(data)
+  override def put(colIdx: Int, data: Long) = externalFrameWriter.sendLong(data)
+  override def put(colIdx: Int, data: Float) = externalFrameWriter.sendFloat(data)
+  override def put(colIdx: Int, data: Double) = externalFrameWriter.sendDouble(data)
+  override def put(colIdx: Int, data: java.sql.Timestamp) = externalFrameWriter.sendTimestamp(data)
+  override def put(colIdx: Int, data: String) = externalFrameWriter.sendString(data)
+  override def putNA(columnNum: Int) = externalFrameWriter.sendNA()
 }
 
 

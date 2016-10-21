@@ -101,11 +101,13 @@ object H2OFrameFromRDDProductBuilder{
   private[converters] def perTypedDataPartition[T<:Product]()
                                                            (keyName: String, vecTypes: Array[Byte], uploadPlan: Option[immutable.Map[Int, NodeDesc]])
                                                            (context: TaskContext, it: Iterator[T]): (Int, Long) = {
+    val asArr = it.toArray[Product] // need to buffer the iterator in order to get its length
     // An array of H2O NewChunks; A place to record all the data in this partition
     val con = ConverterUtils.getWriteConverterContext(uploadPlan, context.partitionId())
-    con.createChunks(keyName,vecTypes,context.partitionId())
 
-    it.foreach(prod => { // For all rows which are subtype of Product
+    con.createChunks(keyName, vecTypes, context.partitionId(), asArr.length)
+
+    asArr.foreach(prod => { // For all rows which are subtype of Product
       for( i <- 0 until prod.productArity ) { // For all fields...
       val fld = prod.productElement(i)
         val x = fld match {
@@ -113,8 +115,14 @@ object H2OFrameFromRDDProductBuilder{
           case _ => fld
         }
         x match {
-          case n: Number  => con.put(i, n.doubleValue())
-          case n: Boolean => con.put(i, if (n) 1 else 0)
+          case n: Boolean => con.put(i, n)
+          case n: Byte => con.put(i, n)
+          case n: Char => con.put(i, n)
+          case n: Short => con.put(i, n)
+          case n: Int => con.put(i, n)
+          case n: Long => con.put(i, n)
+          case n: Float => con.put(i, n)
+          case n: Double => con.put(i, n)
           case n: String  => con.put(i, n)
           case n : java.sql.Timestamp => con.put(i, n)
           case _ => con.putNA(i)
@@ -125,6 +133,6 @@ object H2OFrameFromRDDProductBuilder{
     con.closeChunks()
 
     // Return Partition number and number of rows in this partition
-    (context.partitionId, con.numOfRows)
+    (context.partitionId, asArr.length)
   }
 }

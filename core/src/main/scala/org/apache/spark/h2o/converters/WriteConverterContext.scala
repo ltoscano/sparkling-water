@@ -24,15 +24,18 @@ package org.apache.spark.h2o.converters
   * via unified API
   */
 trait WriteConverterContext {
-  def createChunks(keyName: String, vecTypes: Array[Byte], chunkId: Int)
+  def createChunks(keyName: String, vecTypes: Array[Byte], chunkId: Int, totalNumOfRows: Int)
   def closeChunks()
-  def put(columnNum: Int, n: Number)
-
-  def put(columnNum: Int, n: Boolean)
-  def put(columnNum: Int, n: java.sql.Timestamp)
-  def put(columnNum: Int, n: String)
-  def putNA(columnNum: Int)
-
-  def numOfRows: Long
-  def increaseRowCounter()
+ 
+  def put(colIdx: Int, data: Boolean)
+  def put(colIdx: Int, data: Byte)
+  def put(colIdx: Int, data: Char)
+  def put(colIdx: Int, data: Short)
+  def put(colIdx: Int, data: Int)
+  def put(colIdx: Int, data: Long)
+  def put(colIdx: Int, data: Float)
+  def put(colIdx: Int, data: Double)
+  def put(colIdx: Int, data: java.sql.Timestamp)
+  def put(colIdx: Int, data: String)
+  def putNA(colIdx: Int)
 }

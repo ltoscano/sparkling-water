@@ -21,9 +21,10 @@ package org.apache.spark.h2o.converters
 import java.lang.reflect.Constructor
 
 import org.apache.spark.h2o.H2OContext
-import org.apache.spark.h2o.utils.{ProductType, ReflectionUtils}
+import org.apache.spark.h2o.utils.ProductType
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{Partition, TaskContext}
+import water.ExternalFrameUtils
 import water.fvec.Frame
 
 import scala.annotation.meta.{field, getter, param}
@@ -54,21 +55,29 @@ class H2ORDD[A <: Product: TypeTag: ClassTag, T <: Frame] private(@(transient @p
 
   def mkString(seq: Seq[_], sep: Any) = if (seq == null) "(null)" else seq.mkString(sep.toString)
 
-  val colNamesInFrame = frame.names()
+  val colNames = frame.names()
+
+  override val selectedColumnIndices: Array[Int] = colNames.indices.toArray
+
+  override val expectedTypes: Option[Array[Byte]] = {
+    // there is no need to prepare expected types in internal backend
+    if (isExternalBackend) {
+      // prepare expected types for selected columns
+      Option(ExternalFrameUtils.prepareExpectedTypes(productType.types))
+    } else {
+      None
+    }
+  }
 
   // Check that H2OFrame & given Scala type are compatible
-  if (!productType.isSingleton) {
+  if (!productType.isSingleton) { // Unnecessary check
     val problems = productType.members.filter { m => frame.find(m.name) == -1 } mkString ", "
 
     if (problems.nonEmpty) {
       throw new IllegalArgumentException(s"The following fields are missing in frame: $problems; " +
-        "we have " + colNamesInFrame.mkString(","))
+        "we have " + colNames.mkString(","))
     }
   }
-
-
-  val types = ReflectionUtils.types(typeOf[A])
-  override val expectedTypes: Option[Array[Byte]] = ConverterUtils.prepareExpectedTypes(isExternalBackend, types)
 
   /**
     * :: DeveloperApi ::
@@ -94,7 +103,7 @@ class H2ORDD[A <: Product: TypeTag: ClassTag, T <: Frame] private(@(transient @p
   val columnMapping: Array[Int] = if (productType.isSingleton) Array(0) else multicolumnMapping
 
   def multicolumnMapping: Array[Int] = {
-    val mappings: Array[Int] = productType.members map (colNamesInFrame indexOf _.name)
+    val mappings: Array[Int] = productType.members map (colNames indexOf _.name)
 
     val bads = mappings.zipWithIndex collect {
       case (j, at) if j < 0 =>
@@ -117,9 +126,6 @@ class H2ORDD[A <: Product: TypeTag: ClassTag, T <: Frame] private(@(transient @p
       (columnMapping zip readers) map { case (j, r) => () =>
         r.apply(j).asInstanceOf[AnyRef] // this last trick converts primitives to java.lang wrappers
       }
-
-    override val selectedColumnIndices: Array[Int] = colNamesInFrame.indices.toArray
-
 
     def extractRow: Array[AnyRef] = {
       val rowOpt = convertPerColumn map (_ ())

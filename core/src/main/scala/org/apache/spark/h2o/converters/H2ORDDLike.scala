@@ -41,6 +41,9 @@ private[converters] trait H2ORDDLike[T <: Frame] {
   /** Chunk locations helps us to determine the node which really has the data we needs. */
   val chksLocation = if (isExternalBackend) Some(FrameUtils.getChunksLocations(frame)) else None
 
+  /** Selected column indices */
+  val selectedColumnIndices: Array[Int]
+
   /** Create new types list which describes expected types in a way external H2O backend can use it. This list
   * contains types in a format same for H2ODataFrame and H2ORDD */
   val expectedTypes: Option[Array[Byte]]
@@ -53,9 +56,6 @@ private[converters] trait H2ORDDLike[T <: Frame] {
 
   /** Base implementation for iterator over rows stored in chunks for given partition. */
   trait H2OChunkIterator[+A] extends Iterator[A] {
-
-    /** Selected column indices */
-    val selectedColumnIndices: Array[Int]
 
     /* Key of pointing to underlying dataframe */
     val keyName: String

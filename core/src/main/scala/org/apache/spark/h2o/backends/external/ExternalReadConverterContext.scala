@@ -19,7 +19,7 @@ package org.apache.spark.h2o.backends.external
 
 import org.apache.spark.h2o.converters.ReadConverterContext
 import org.apache.spark.h2o.utils.NodeDesc
-import water.ExternalFrameReader
+import water.ExternalFrameReaderClient
 /**
   *
   * @param keyName key name of frame to query data from
@@ -29,32 +29,32 @@ import water.ExternalFrameReader
 class ExternalReadConverterContext(override val keyName: String, override val chunkIdx: Int,
                                     val nodeDesc: NodeDesc, expectedTypes: Array[Byte], selectedColumnIndices: Array[Int])
   extends ExternalBackendUtils with ReadConverterContext {
-  override type DataSource = ExternalFrameReader
+  override type DataSource = ExternalFrameReaderClient
 
   private val socketChannel = ConnectionToH2OHelper.getOrCreateConnection(nodeDesc)
-  val externalFrameReader = new ExternalFrameReader(socketChannel, keyName, expectedTypes, chunkIdx, selectedColumnIndices)
+  val externalFrameReader = new ExternalFrameReaderClient(socketChannel, keyName, chunkIdx, selectedColumnIndices, expectedTypes)
 
-  private val numOfRows: Int =  externalFrameReader.getNumOfRows()
+  private val numOfRows: Int =  externalFrameReader.getNumRows
 
   override def numRows: Int = numOfRows
 
   override def returnOption[T](read: DataSource => T)(columnNum: Int): Option[T] = {
-    if (isNA(columnNum)) {
+    val value = read(externalFrameReader)
+    if(externalFrameReader.isLastNA){
       None
-    } else {
-      Option(read(externalFrameReader))
+    }else{
+      Option(value)
     }
   }
 
   override def returnSimple[T](ifMissing: String => T, read: DataSource => T)(columnNum: Int): T = {
-    if (isNA(columnNum)) ifMissing(s"Row $rowIdx column $columnNum") else read(externalFrameReader)
+    val value = read(externalFrameReader)
+    if (externalFrameReader.isLastNA) ifMissing(s"Row $rowIdx column $columnNum") else value
   }
 
   override def longAt(source: DataSource): Long = source.readLong()
   override def doubleAt(source: DataSource): Double = source.readDouble()
   override def string(source: DataSource) = source.readString()
-
-  private def isNA(columnNum: Int) = externalFrameReader.readIsNA()
 
   override def hasNext: Boolean = {
     val isNext = super.hasNext

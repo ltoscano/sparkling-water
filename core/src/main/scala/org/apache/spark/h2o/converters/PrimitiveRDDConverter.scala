@@ -21,8 +21,8 @@ import org.apache.spark.TaskContext
 import org.apache.spark.h2o._
 import org.apache.spark.h2o.utils.{NodeDesc, ReflectionUtils}
 import org.apache.spark.internal.Logging
-import water.Key
 import water.fvec.H2OFrame
+import water.{ExternalFrameUtils, Key}
 
 import scala.collection.immutable
 import scala.language.implicitConversions
@@ -36,9 +36,17 @@ private[converters] object PrimitiveRDDConverter extends Logging with ConverterU
     val keyName = frameKeyName.getOrElse("frame_rdd_" + rdd.id + Key.rand())
 
     val fnames = Array[String]("values")
-    val vecTypes = Array[Byte](vecTypeOf[T])
 
-    convert[T](hc, rdd, keyName, fnames, vecTypes, perPrimitiveRDDPartition())
+    // in case of internal backend, store regular vector types
+    // otherwise for external backend store expected types
+    val expectedTypes = if(hc.getConf.runsInInternalClusterMode){
+      Array[Byte](vecTypeOf[T])
+    }else{
+      val clazz = ReflectionUtils.javaClassOf[T]
+      ExternalFrameUtils.prepareExpectedTypes(Array[Class[_]](clazz))
+    }
+
+    convert[T](hc, rdd, keyName, fnames, expectedTypes, perPrimitiveRDDPartition())
   }
 
 
@@ -57,25 +65,29 @@ private[converters] object PrimitiveRDDConverter extends Logging with ConverterU
   def perPrimitiveRDDPartition[T]() // extra arguments for this transformation
                                  (keyName: String, vecTypes: Array[Byte], uploadPlan: Option[immutable.Map[Int, NodeDesc]]) // general arguments
                                  (context: TaskContext, it: Iterator[T]): (Int, Long) = { // arguments and return types needed for spark's runJob input
-    val con = ConverterUtils.getWriteConverterContext(uploadPlan, context.partitionId())
 
-    con.createChunks(keyName, vecTypes, context.partitionId())
-    // try to wait for reply to ensure we can continue with sending
-    it.foreach { r =>
-      r match {
-        case n: Number => con.put(0, n)
-        case n: Boolean => con.put(0, n)
-        case n: String => con.put(0, n)
-        case n: java.sql.Timestamp => con.put(0, n)
-        case _ => con.putNA(0)
-      }
-      con.increaseRowCounter()
+    val asArr = it.toArray[Any] // need to buffer the iterator in order to get its length
+    val con = ConverterUtils.getWriteConverterContext(uploadPlan, context.partitionId())
+    con.createChunks(keyName, vecTypes, context.partitionId(), asArr.length)
+
+    asArr.foreach {
+      case n: Boolean => con.put(0, n)
+      case n: Byte => con.put(0, n)
+      case n: Char => con.put(0, n)
+      case n: Short => con.put(0, n)
+      case n: Int => con.put(0, n)
+      case n: Long => con.put(0, n)
+      case n: Float => con.put(0, n)
+      case n: Double => con.put(0, n)
+      case n: String => con.put(0, n)
+      case n: java.sql.Timestamp => con.put(0, n)
+      case _ => con.putNA(0)
     }
     //Compress & write data in partitions to H2O Chunks
     con.closeChunks()
 
     // Return Partition number and number of rows in this partition
-    (context.partitionId, con.numOfRows)
+    (context.partitionId, asArr.length)
   }
 
 }

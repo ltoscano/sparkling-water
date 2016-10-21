@@ -24,7 +24,7 @@ import water.fvec.{FrameUtils, NewChunk}
 
 class InternalWriteConverterContext extends WriteConverterContext{
   private var chunks: Array[NewChunk] = _
-  override def createChunks(keyName: String, vecTypes: Array[Byte], chunkId: Int): Unit = {
+  override def createChunks(keyName: String, vecTypes: Array[Byte], chunkId: Int, totalNumRows: Int): Unit = {
    chunks = FrameUtils.createNewChunks(keyName, vecTypes, chunkId)
   }
 
@@ -32,17 +32,16 @@ class InternalWriteConverterContext extends WriteConverterContext{
     FrameUtils.closeNewChunks(chunks)
   }
 
-  override def put(columnNum: Int, n: Number): Unit = chunks(columnNum).addNum(n.doubleValue())
-
-  override def put(columnNum: Int, n: Boolean): Unit =  chunks(columnNum).addNum(if (n) 1 else 0)
-
-  override def put(columnNum: Int, n: Timestamp): Unit = chunks(columnNum).addNum(n.getTime)
-
-  override def put(columnNum: Int, str: String): Unit = chunks(columnNum).addStr(str)
-
+  override def put(columnNum: Int, data: Boolean): Unit =  chunks(columnNum).addNum(if (data) 1 else 0)
+  override def put(columnNum: Int, data: Byte): Unit = chunks(columnNum).addNum(data)
+  override def put(columnNum: Int, data: Char): Unit = chunks(columnNum).addNum(data)
+  override def put(columnNum: Int, data: Short): Unit = chunks(columnNum).addNum(data)
+  override def put(columnNum: Int, data: Int): Unit = chunks(columnNum).addNum(data)
+  override def put(columnNum: Int, data: Long): Unit = chunks(columnNum).addNum(data)
+  override def put(columnNum: Int, data: Float): Unit = chunks(columnNum).addNum(data)
+  override def put(columnNum: Int, data: Double): Unit = chunks(columnNum).addNum(data)
+  override def put(columnNum: Int, data: Timestamp): Unit = chunks(columnNum).addNum(data.getTime)
+  override def put(columnNum: Int, data: String): Unit = chunks(columnNum).addStr(data)
   override def putNA(columnNum: Int): Unit = chunks(columnNum).addNA()
 
-  override def increaseRowCounter(): Unit = { }// empty on purpose, we can get number or rows without counter
-
-  override def numOfRows: Long = chunks(0).len()
 }

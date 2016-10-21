@@ -24,6 +24,7 @@ import org.apache.spark.h2o.utils.{H2OSchemaUtils, NodeDesc, ReflectionUtils}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.{DataFrame, H2OFrameRelation, Row, SQLContext}
+import water.ExternalFrameUtils
 import water.fvec.{Frame, H2OFrame}
 
 import scala.collection.immutable
@@ -58,10 +59,17 @@ trait SparkDataFrameConverter extends Logging with ConverterUtils {
     val flatRddSchema = expandedSchema(hc.sparkContext, dataFrame)
     // Patch the flat schema based on information about types
     val fnames = flatRddSchema.map(t => t._2.name).toArray
-    // Transform datatype into h2o types
-    val vecTypes = flatRddSchema.map(f => vecTypeFor(f._2.dataType)).toArray
 
-    convert[Row](hc, dfRdd, keyName, fnames, vecTypes, perSQLPartition(flatRddSchema))
+    // in case of internal backend, store regular vector types
+    // otherwise for external backend store expected types
+    val expectedTypes = if(hc.getConf.runsInInternalClusterMode){
+      // Transform datatype into h2o types
+      flatRddSchema.map(f => vecTypeFor(f._2.dataType)).toArray
+    }else{
+      val javaClasses = flatRddSchema.map(f => supportedTypeOf(f._2.dataType).javaClass).toArray
+      ExternalFrameUtils.prepareExpectedTypes(javaClasses)
+    }
+    convert[Row](hc, dfRdd, keyName, fnames, expectedTypes, perSQLPartition(flatRddSchema))
   }
 
   /**
@@ -78,12 +86,12 @@ trait SparkDataFrameConverter extends Logging with ConverterUtils {
   def perSQLPartition(types: Seq[(Seq[Int], StructField, Byte)])
                      (keyName: String, vecTypes: Array[Byte], uploadPlan: Option[immutable.Map[Int, NodeDesc]])
                      (context: TaskContext, it: Iterator[Row]): (Int, Long) = {
+    val asArr = it.toArray[Row] // need to buffer the iterator in order to get its length
     val con = ConverterUtils.getWriteConverterContext(uploadPlan, context.partitionId())
     // Creates array of H2O NewChunks; A place to record all the data in this partition
-    con.createChunks(keyName, vecTypes, context.partitionId())
+    con.createChunks(keyName, vecTypes, context.partitionId(), asArr.length)
 
-
-    it.foreach(row => {
+    asArr.foreach(row => {
       var startOfSeq = -1
       // Fill row in the output frame
       types.indices.foreach { idx => // Index of column
@@ -144,14 +152,13 @@ trait SparkDataFrameConverter extends Logging with ConverterUtils {
         }
 
       }
-      con.increaseRowCounter()
     })
 
     //Compress & write data in partitions to H2O Chunks
     con.closeChunks()
 
     // Return Partition number and number of rows in this partition
-    (context.partitionId, con.numOfRows)
+    (context.partitionId, asArr.length)
   }
 
   private def getVecLen(r: Row, idx: Int): Int = {

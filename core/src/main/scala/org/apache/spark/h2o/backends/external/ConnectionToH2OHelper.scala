@@ -17,9 +17,10 @@
 
 package org.apache.spark.h2o.backends.external
 
-import java.nio.channels.SocketChannel
-import water.ExternalFrameHandler
+import java.nio.channels.ByteChannel
+
 import org.apache.spark.h2o.utils.NodeDesc
+import water.ExternalFrameUtils
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -37,18 +38,17 @@ object ConnectionToH2OHelper {
   // pool of available connections using the method putAvailableConnection
   private class PerOneNodeConnection(val nodeDesc: NodeDesc) {
 
-    private def getConnection(nodeDesc: NodeDesc): SocketChannel = {
-      ExternalFrameHandler.getConnection(nodeDesc.hostname, nodeDesc.port)
+    private def getConnection(nodeDesc: NodeDesc): ByteChannel= {
+      ExternalFrameUtils.getConnection(nodeDesc.hostname, nodeDesc.port)
     }
-
     // ordered list of connections where the available connections are at the start of the list and the used at the end.
-    private val availableConnections = new java.util.concurrent.ConcurrentLinkedQueue[(SocketChannel, Long)]()
-    def getAvailableConnection(): SocketChannel = {
+    private val availableConnections = new java.util.concurrent.ConcurrentLinkedQueue[(ByteChannel, Long)]()
+    def getAvailableConnection(): ByteChannel = {
       if(availableConnections.isEmpty){
         getConnection(nodeDesc)
       }else{
         val socketChannel = availableConnections.poll()._1
-        if(!socketChannel.isOpen || !socketChannel.isConnected){
+        if(!socketChannel.isOpen){
           // connection closed, open a new one to replace it
           getConnection(nodeDesc)
         }else{
@@ -59,7 +59,7 @@ object ConnectionToH2OHelper {
 
 
 
-    def putAvailableConnection(sock: SocketChannel): Unit = {
+    def putAvailableConnection(sock: ByteChannel): Unit = {
       availableConnections.add((sock, System.currentTimeMillis()))
 
       // after each put start this cleaning thread
@@ -83,14 +83,14 @@ object ConnectionToH2OHelper {
   // this map is created in each executor so we don't have to specify executor Id
   private[this] val connectionMap = mutable.HashMap.empty[NodeDesc, PerOneNodeConnection]
 
-  def getOrCreateConnection(nodeDesc: NodeDesc): SocketChannel = connectionMap.synchronized{
+  def getOrCreateConnection(nodeDesc: NodeDesc): ByteChannel = connectionMap.synchronized{
     if(!connectionMap.contains(nodeDesc)){
       connectionMap += nodeDesc -> new PerOneNodeConnection(nodeDesc)
     }
     connectionMap(nodeDesc).getAvailableConnection()
   }
 
-  def putAvailableConnection(nodeDesc: NodeDesc, sock: SocketChannel): Unit = connectionMap.synchronized{
+  def putAvailableConnection(nodeDesc: NodeDesc, sock: ByteChannel): Unit = connectionMap.synchronized{
     if(!connectionMap.contains(nodeDesc)){
       connectionMap += nodeDesc -> new PerOneNodeConnection(nodeDesc)
     }

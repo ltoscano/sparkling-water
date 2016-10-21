@@ -17,17 +17,16 @@
 
 package org.apache.spark.h2o.converters
 
+
 import org.apache.spark.TaskContext
 import org.apache.spark.h2o._
 import org.apache.spark.h2o.backends.external.{ExternalReadConverterContext, ExternalWriteConverterContext}
 import org.apache.spark.h2o.backends.internal.{InternalReadConverterContext, InternalWriteConverterContext}
 import org.apache.spark.h2o.utils.NodeDesc
-import org.apache.spark.sql.types._
-import water.{DKV, ExternalFrameReader, Key}
+import water.{DKV, ExternalFrameUtils, Key}
 
 import scala.collection.immutable
 import scala.collection.mutable.ListBuffer
-import scala.reflect.runtime.universe._
 
 
 private[converters] trait ConverterUtils {
@@ -98,7 +97,14 @@ private[converters] trait ConverterUtils {
     val res = new Array[Long](preparedRDD.partitions.length)
     rows.foreach { case (cidx,  nrows) => res(cidx) = nrows }
     // Add Vec headers per-Chunk, and finalize the H2O Frame
-    new H2OFrame(finalizeFrame(keyName, res, vecTypes))
+
+    // get the vector types from expected types in case of external h2o cluster
+    val types = if(hc.getConf.runsInExternalClusterMode){
+      ExternalFrameUtils.vecTypesFromExpectedTypes(vecTypes)
+    }else{
+      vecTypes
+    }
+    new H2OFrame(finalizeFrame(keyName, res, types))
   }
 }
 
@@ -122,7 +128,8 @@ object ConverterUtils extends ConverterUtils {
 
   def getReadConverterContext(keyName: String, chunkIdx: Int,
                               extra: Option[ExternalBackendInfo]): ReadConverterContext = {
-    val converterContext = if (extra.isDefined) { // metainfo external cluster is not empty => use external cluster
+    val converterContext = if (extra.isDefined) {
+      // metainfo external cluster is not empty => use external cluster
       new ExternalReadConverterContext(keyName, chunkIdx, extra.get.chksLocation(chunkIdx), extra.get.expectedTypes, extra.get.selectedColumnIndices)
     } else {
       new InternalReadConverterContext(keyName, chunkIdx)
@@ -152,49 +159,18 @@ object ConverterUtils extends ConverterUtils {
     }
   }
 
-  def prepareExpectedTypes[T: TypeTag](isExternalBackend: Boolean, types: Array[T]): Option[Array[Byte]] =
-    if(!isExternalBackend){
-      None
-    }else {
-      typeOf[T] match {
-        case t if t =:= typeOf[DataType] =>
-          Some(types.map {
-            case ByteType => ExternalFrameReader.EXPECTED_INT
-            case ShortType => ExternalFrameReader.EXPECTED_INT
-            case IntegerType => ExternalFrameReader.EXPECTED_INT
-            case LongType => ExternalFrameReader.EXPECTED_INT
-            case FloatType => ExternalFrameReader.EXPECTED_INT
-            case DoubleType => ExternalFrameReader.EXPECTED_DOUBLE
-            case BooleanType => ExternalFrameReader.EXPECTED_INT
-            case StringType => ExternalFrameReader.EXPECTED_STRING
-            case TimestampType => ExternalFrameReader.EXPECTED_INT
-          })
-        case t if t =:= typeOf[Class[_]] =>
-          Some(types.map {
-            case q if q == classOf[Integer] => ExternalFrameReader.EXPECTED_INT
-            case q if q == classOf[java.lang.Long] => ExternalFrameReader.EXPECTED_INT
-            case q if q == classOf[java.lang.Double] => ExternalFrameReader.EXPECTED_DOUBLE
-            case q if q == classOf[java.lang.Float] => ExternalFrameReader.EXPECTED_INT
-            case q if q == classOf[java.lang.Boolean] => ExternalFrameReader.EXPECTED_INT
-            case q if q == classOf[String] => ExternalFrameReader.EXPECTED_STRING
-          })
-      }
-    }
 }
-
-
 
 class ExternalBackendInfo private (val chksLocation: Array[NodeDesc],
                                    val expectedTypes: Array[Byte],
                                    val selectedColumnIndices: Array[Int])
 
 object ExternalBackendInfo{
-  def apply(chksLocation: Option[Array[NodeDesc]],
-            expectedTypes: Option[Array[Byte]],
+  def apply(chksLocation: Option[Array[NodeDesc]], expectedTypes: Option[Array[Byte]],
             selectedColumnIndices: Array[Int]): Option[ExternalBackendInfo] = {
 
     if(chksLocation.isDefined){
-      Some(new ExternalBackendInfo(chksLocation.get, expectedTypes.get, selectedColumnIndices))
+      Some(new ExternalBackendInfo(chksLocation.get, expectedTypes.get,  selectedColumnIndices))
     }else{
       None
     }
