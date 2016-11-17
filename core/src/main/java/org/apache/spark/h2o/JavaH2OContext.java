@@ -20,6 +20,7 @@ package org.apache.spark.h2o;
 import org.apache.spark.SparkContext;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.api.java.function.Function;
 import org.apache.spark.h2o.converters.SupportedRDD$;
 import org.apache.spark.mllib.regression.LabeledPoint;
 import org.apache.spark.sql.Dataset;
@@ -29,6 +30,8 @@ import scala.Option;
 import water.Key;
 import water.fvec.Frame;
 import water.fvec.H2OFrame;
+
+import java.io.Serializable;
 
 /**
  * A Java-friendly version of [[org.apache.spark.h2o.H2OContext]]
@@ -45,7 +48,7 @@ import water.fvec.H2OFrame;
  * can be set in H2O configuration class H2OConf
  *
  */
-public class JavaH2OContext {
+public class JavaH2OContext implements Serializable {
 /*
 Note for developers: This class is not written in scala intentionally as we want to have static method getOrCreate on
 the class itself and not on class generated from the object ( like H2OContext$). This way the functionality and API
@@ -53,8 +56,8 @@ remains the same as in H2OContext, but we need to write a few pass-through funct
 
 If we write this class in scala the Java users would have to call getOrCreate method on generated class ending with $
 which is not nice.
- */
-    private H2OContext hc;
+*/
+    transient private H2OContext hc;
 
     public H2OContext h2oContext(){
         return hc;
@@ -239,7 +242,6 @@ which is not nice.
 
     /** Conversion from RDD[Integer] to H2O's DataFrame */
     public H2OFrame asH2OFrameFromRDDInt(JavaRDD<Integer> rdd, String frameName){
-
         return hc.asH2OFrame(SupportedRDD$.MODULE$.toH2OFrameFromRDDJavaInt(rdd.rdd()), Option.apply(frameName));
     }
 
@@ -269,6 +271,21 @@ which is not nice.
     /** Conversion from RDD[Long] to H2O's DataFrame */
     public H2OFrame asH2OFrameFromRDDLong(JavaRDD<Long> rdd, String frameName){
         return hc.asH2OFrame(SupportedRDD$.MODULE$.toH2OFrameFromRDDJavaLong(rdd.rdd()), Option.apply(frameName));
+    }
+
+    /** Conversion from RDD[Long] to H2O's DataFrame
+     * This method is used by the python client since even though the rdd is of type long,
+     * some of the elements are actually integers. We need to convert all types to long in order to not break the
+     * backend
+     * */
+    public H2OFrame asH2OFrameFromPythonRDDLong(JavaRDD<Number> rdd, String frameName){
+        JavaRDD<Long> casted = rdd.map(new Function<Number, Long>() {
+            @Override
+            public Long call(Number v1) throws Exception {
+                return v1.longValue();
+            }
+        });
+        return asH2OFrameFromRDDLong(casted, frameName);
     }
 
     /** Conversion from RDD[LabeledPoint] to H2O's DataFrame */
