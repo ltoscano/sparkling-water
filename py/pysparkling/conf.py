@@ -80,6 +80,10 @@ class H2OConf(object):
         self._jconf.setMapperXmx(mem)
         return self
 
+    def set_cluster_config_file(self, path):
+        self._jconf.setClusterConfigFile(path)
+        return self
+
     # getters
 
     def h2o_cluster(self):
@@ -94,8 +98,11 @@ class H2OConf(object):
     def hdfs_output_dir(self):
         return self._get_option(self._jconf.HDFSOutputDir)
 
-    def mapperXmx(self):
+    def mapper_xmx(self):
         return self._get_option(self._jconf.mapperXmx)
+
+    def cluster_config_file(self):
+        return self._get_option(self._jconf.clusterConfigFile)
 
     def cloud_name(self):
         return self._get_option(self._jconf.cloudName())
@@ -138,7 +145,6 @@ class H2OConf(object):
 
     def subseq_tries(self):
         return self._jconf.subseqTries()
-
 
     def backend_cluster_mode(self):
         return self._jconf.backendClusterMode()

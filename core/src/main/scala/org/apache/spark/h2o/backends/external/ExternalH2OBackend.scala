@@ -18,6 +18,8 @@
 package org.apache.spark.h2o.backends.external
 
 
+import java.io.File
+
 import org.apache.hadoop.fs.Path
 import org.apache.spark.h2o.{H2OConf, H2OContext}
 import org.apache.spark.h2o.backends.SparklingBackend
@@ -26,6 +28,7 @@ import org.apache.spark.internal.Logging
 import water.api.RestAPIManager
 import water.{H2O, H2OStarter}
 
+import scala.io.Source
 import scala.util.Random
 import scala.util.control.NoStackTrace
 
@@ -33,21 +36,21 @@ import scala.util.control.NoStackTrace
 class ExternalH2OBackend(val hc: H2OContext) extends SparklingBackend with ExternalBackendUtils with Logging {
 
   private var yarnAppId: String = _
-  def launchH2OOnYarn(conf: H2OConf): (String, String) = {
+  def launchH2OOnYarn(conf: H2OConf): String = {
     val cmdToLaunch = Seq[String](
       "hadoop",
       "jar",
       conf.h2oDriverPath.get,
       conf.YARNQueue.map("-Dmapreduce.job.queuename=" + _ ).getOrElse(""),
       "-nodes", conf.numOfExternalH2ONodes.get,
+      "-notify", conf.clusterInfoFile.get,
       "-J", "-md5skip",
       "-mapperXmx", conf.mapperXmx,
-      "-output", conf.HDFSOutputDir.get,
-      "-disown" // close the driver after cluster formation
+      "-output", conf.HDFSOutputDir.get
     )
 
+    // start external h2o cluster and log the output
     logDebug("Command used to start H2O on yarn: " + cmdToLaunch.mkString)
-
     import scala.sys.process._
     val stdout = new StringBuffer()
     val stderr = new StringBuffer()
@@ -64,13 +67,14 @@ class ExternalH2OBackend(val hc: H2OContext) extends SparklingBackend with Exter
     logDebug(stdout.toString)
     logDebug(stderr.toString)
 
-    // parse required information
-    val clusterName = stdout.toString.split("\n").find(_.contains("Job name")).get.split("'")(1)
-    val arbitraryNodeIPPort = stdout.toString.split("\n").find(_.contains("H2O node")).get.split(" ")(2)
-    val split = stdout.toString.split("\n").find(_.contains("For YARN users, logs command is")).get.split(Array(' ','''))
-    yarnAppId = split(split.length-1)
+
+    // get ip port
+    val clusterInfo = Source.fromFile(hc.getConf.clusterInfoFile.get+".tmp").getLines
+    val ipPort = clusterInfo.next()
+    yarnAppId = clusterInfo.next()
+
     assert(proc == 0, s"Process ended with return value $proc")
-    (clusterName, arbitraryNodeIPPort)
+    ipPort
   }
 
   override def init(): Array[NodeDesc] = {
@@ -78,9 +82,8 @@ class ExternalH2OBackend(val hc: H2OContext) extends SparklingBackend with Exter
     if (hc.getConf.h2oDriverPath.isDefined) {
       // start h2o instances on yarn
       logInfo("Starting H2O cluster on YARN")
-      val info = launchH2OOnYarn(hc.getConf)
-      hc._conf.setCloudName(info._1)
-      hc._conf.setH2OCluster(info._2)
+      val ipPort = launchH2OOnYarn(hc.getConf)
+      hc._conf.setH2OCluster(ipPort)
     }
     // Start H2O in client mode and connect to existing H2O Cluster
     logTrace("Starting H2O on client mode and connecting it to existing h2o cluster")
@@ -127,6 +130,7 @@ class ExternalH2OBackend(val hc: H2OContext) extends SparklingBackend with Exter
       try {
         val hdfs = org.apache.hadoop.fs.FileSystem.get(hc.sparkContext.hadoopConfiguration)
         hdfs.delete(new Path(hc.getConf.HDFSOutputDir.get), true)
+        new File(hc.getConf.clusterInfoFile.get).delete()
       }catch {
         case e: Exception => log.error(e.getMessage)
       }
@@ -154,6 +158,10 @@ class ExternalH2OBackend(val hc: H2OContext) extends SparklingBackend with Exter
 
       if (conf.HDFSOutputDir.isEmpty) {
         conf.setHDFSOutputDir(conf.cloudName.get)
+      }
+
+      if(conf.clusterInfoFile.isEmpty){
+        conf.setClusterConfigFile(conf.cloudName.get)
       }
 
     } else {

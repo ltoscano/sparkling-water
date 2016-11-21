@@ -34,7 +34,7 @@ trait ExternalBackendConf extends SharedH2OConf {
   def numOfExternalH2ONodes = sparkConf.getOption(PROP_EXTERNAL_H2O_NODES._1)
   def HDFSOutputDir = sparkConf.getOption(PROP_EXTERNAL_CLUSTER_HDFS_DIR._1)
   def mapperXmx = sparkConf.get(PROP_EXTERNAL_H2O_MEMORY._1, PROP_EXTERNAL_H2O_MEMORY._2)
-
+  def clusterInfoFile = sparkConf.getOption(PROP_EXTERNAL_CLUSTER_INFO_FILE._1)
 
   /**
     * Sets node and port representing H2O Cluster to which should H2O connect when started in external mode.
@@ -103,6 +103,10 @@ trait ExternalBackendConf extends SharedH2OConf {
     self
   }
 
+  def setClusterConfigFile(path: String) = {
+    sparkConf.set(PROP_EXTERNAL_CLUSTER_INFO_FILE._1, path)
+    self
+  }
 
   def externalConfString: String =
     s"""Sparkling Water configuration:
@@ -115,6 +119,8 @@ trait ExternalBackendConf extends SharedH2OConf {
 }
 
 object ExternalBackendConf {
+
+  val PROP_EXTERNAL_CLUSTER_INFO_FILE = ("spark.ext.h2o.cluster.info.name", null.asInstanceOf[String])
 
   val PROP_EXTERNAL_H2O_MEMORY = ("spark.ext.h2o.hadoop.memory", "6g")
 
