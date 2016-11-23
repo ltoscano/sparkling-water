@@ -17,6 +17,8 @@
 
 package org.apache.spark.h2o.backends.external
 
+import java.io.IOException
+
 import org.apache.spark.h2o._
 import org.apache.spark.h2o.converters.WriteConverterCtx
 import org.apache.spark.h2o.utils.NodeDesc
@@ -31,8 +33,13 @@ class ExternalWriteConverterCtx(nodeDesc: NodeDesc, totalNumOfRows: Int) extends
     * This method closes the communication after the chunks have been closed
     */
   override def closeChunks(): Unit = {
-    externalFrameWriter.waitUntilAllWritten()
-    ConnectionToH2OHelper.putAvailableConnection(nodeDesc, socketChannel)
+    try{
+      externalFrameWriter.waitUntilAllWritten()
+    }finally {
+      if(socketChannel.isOpen){
+        ConnectionToH2OHelper.putAvailableConnection(nodeDesc, socketChannel)
+      }
+    }
   }
 
   /**
