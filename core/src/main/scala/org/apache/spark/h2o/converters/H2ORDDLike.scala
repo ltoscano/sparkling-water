@@ -63,8 +63,8 @@ private[converters] trait H2ORDDLike[T <: Frame] {
     val partIndex: Int
 
     /* Converter context */
-    lazy val converterCtx: ReadConverterContext =
-      ConverterUtils.getReadConverterContext(
+    lazy val converterCtx: ReadConverterCtx =
+      ReadConverterCtxUtils.create(
         keyName,
         partIndex,
         // we need to send list of all expected types, not only the list filtered for expected columns

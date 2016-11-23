@@ -17,14 +17,14 @@
 
 package org.apache.spark.h2o.backends.internal
 
-import org.apache.spark.h2o.converters.ReadConverterContext
+import org.apache.spark.h2o.converters.ReadConverterCtx
 import water.fvec.{Chunk, Frame, Vec}
 import water.parser.BufferedString
 import water.{DKV, Key}
 
 import scala.language.postfixOps
 
-class InternalReadConverterContext(override val keyName: String, override val chunkIdx: Int) extends ReadConverterContext{
+class InternalReadConverterCtx(override val keyName: String, override val chunkIdx: Int) extends ReadConverterCtx {
 
   override type DataSource = Chunk
 
@@ -66,7 +66,5 @@ class InternalReadConverterContext(override val keyName: String, override val ch
   ) withDefault((t: Byte) => {
     assert(assertion = false, s"Should never be here, type is $t")
     (_: Chunk) => null
-  }
-    )
-
+  })
 }

@@ -17,18 +17,18 @@
 
 package org.apache.spark.h2o.converters
 
+import org.apache.hadoop.yarn.util.ConverterUtils
 import org.apache.spark.TaskContext
 import org.apache.spark.h2o._
-import org.apache.spark.h2o.utils.NodeDesc
+import org.apache.spark.h2o.converters.WriteConverterCtxUtils.UploadPlan
 import org.apache.spark.internal.Logging
 import org.apache.spark.mllib.regression.LabeledPoint
 import water.fvec.{H2OFrame, Vec}
 import water.{ExternalFrameUtils, Key}
 
-import scala.collection.immutable
 import scala.language.{implicitConversions, postfixOps}
 
-private[converters] object LabeledPointConverter extends Logging with ConverterUtils {
+private[converters] object LabeledPointConverter extends Logging {
 
   /** Transform RDD[LabeledPoint] to appropriate H2OFrame */
   def toH2OFrame(hc: H2OContext, rdd: RDD[LabeledPoint], frameKeyName: Option[String]): H2OFrame = {
@@ -48,11 +48,10 @@ private[converters] object LabeledPointConverter extends Logging with ConverterU
 
     // in case of internal backend, store regular vector types
     // otherwise for external backend store expected types
-    val expectedTypes = if(hc.getConf.runsInInternalClusterMode) Vec.T_NUM else ExternalFrameUtils.EXPECTED_DOUBLE
-    Array.fill(maxNumFeatures + 1)(expectedTypes)
+    val typeToUse = if(hc.getConf.runsInInternalClusterMode) Vec.T_NUM else ExternalFrameUtils.EXPECTED_DOUBLE
+    val expectedTypes = Array.fill(maxNumFeatures + 1)(typeToUse)
 
-
-    convert[LabeledPoint](hc, rdd, keyName, fnames, expectedTypes, perLabeledPointRDDPartition(maxNumFeatures))
+    WriteConverterCtxUtils.convert[LabeledPoint](hc, rdd, keyName, fnames, expectedTypes, perLabeledPointRDDPartition(maxNumFeatures))
   }
 
   /**
@@ -67,10 +66,10 @@ private[converters] object LabeledPointConverter extends Logging with ConverterU
     */
   private[this]
   def perLabeledPointRDDPartition(maxNumFeatures: Int)
-                                 (keyName: String, vecTypes: Array[Byte], uploadPlan: Option[immutable.Map[Int, NodeDesc]])
+                                 (keyName: String, vecTypes: Array[Byte], uploadPlan: UploadPlan)
                                  (context: TaskContext, it: Iterator[LabeledPoint]): (Int, Long) = {
-    val (iterator, dataSize) = ConverterUtils.bufferedIteratorWithSize(uploadPlan, it)
-    val con = ConverterUtils.getWriteConverterContext(uploadPlan, context.partitionId(), dataSize)
+    val (iterator, dataSize) = WriteConverterCtxUtils.bufferedIteratorWithSize(uploadPlan, it)
+    val con = WriteConverterCtxUtils.create(uploadPlan, context.partitionId(), dataSize)
     // Creates array of H2O NewChunks; A place to record all the data in this partition
     con.createChunks(keyName, vecTypes, context.partitionId())
 

@@ -99,8 +99,7 @@ class H2ODataFrame[T <: water.fvec.Frame](@transient val frame: T,
       }
     }
 
-    // TODO(vlad): get rid of booleanness
-    // Wrap the iterator to backend specific wrapper
-    ConverterUtils.getIterator[InternalRow](isExternalBackend, iterator)
+    // Wrap the iterator as a backend specific wrapper
+    ReadConverterCtxUtils.backendSpecificIterator[InternalRow](isExternalBackend, iterator)
   }
 }

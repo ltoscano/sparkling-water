@@ -19,10 +19,11 @@ package org.apache.spark.h2o.backends.internal
 
 import java.sql.Timestamp
 
-import org.apache.spark.h2o.converters.WriteConverterContext
+import org.apache.spark.h2o.converters.WriteConverterCtx
 import water.fvec.{FrameUtils, NewChunk}
 
-class InternalWriteConverterContext extends WriteConverterContext{
+class InternalWriteConverterCtx extends WriteConverterCtx {
+
   private var chunks: Array[NewChunk] = _
   override def createChunks(keyName: String, vecTypes: Array[Byte], chunkId: Int): Unit = {
    chunks = FrameUtils.createNewChunks(keyName, vecTypes, chunkId)

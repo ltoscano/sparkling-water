@@ -32,7 +32,7 @@ case class MetaInfo(names:Array[String], types: Array[SupportedType]) {
   lazy val vecTypes: Array[Byte] = types map (_.vecType)
 }
 
-case class H2OFrameFromRDDProductBuilder(hc: H2OContext, rdd: RDD[Product], frameKeyName: Option[String]) extends ConverterUtils {
+case class H2OFrameFromRDDProductBuilder(hc: H2OContext, rdd: RDD[Product], frameKeyName: Option[String]) {
 
   private[this] val defaultFieldNames = (i: Int) => "f" + i
   
@@ -64,7 +64,7 @@ case class H2OFrameFromRDDProductBuilder(hc: H2OContext, rdd: RDD[Product], fram
 
   private[this] def withMeta(meta: MetaInfo): H2OFrame = {
     val kn: String = keyName(rdd, frameKeyName)
-    convert[Product](hc, rdd, kn, meta.names, meta.vecTypes, H2OFrameFromRDDProductBuilder.perTypedDataPartition())
+    WriteConverterCtxUtils.convert[Product](hc, rdd, kn, meta.names, meta.vecTypes, H2OFrameFromRDDProductBuilder.perTypedDataPartition())
   }
 
 
@@ -101,9 +101,9 @@ object H2OFrameFromRDDProductBuilder{
   private[converters] def perTypedDataPartition[T<:Product]()
                                                            (keyName: String, vecTypes: Array[Byte], uploadPlan: Option[immutable.Map[Int, NodeDesc]])
                                                            (context: TaskContext, it: Iterator[T]): (Int, Long) = {
-    val (iterator, dataSize) = ConverterUtils.bufferedIteratorWithSize(uploadPlan, it)
+    val (iterator, dataSize) = WriteConverterCtxUtils.bufferedIteratorWithSize(uploadPlan, it)
     // An array of H2O NewChunks; A place to record all the data in this partition
-    val con = ConverterUtils.getWriteConverterContext(uploadPlan, context.partitionId(), dataSize)
+    val con = WriteConverterCtxUtils.create(uploadPlan, context.partitionId(), dataSize)
 
     con.createChunks(keyName, vecTypes, context.partitionId())
 

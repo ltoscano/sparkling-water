@@ -21,6 +21,7 @@ package org.apache.spark.h2o.converters
 import java.lang.reflect.Constructor
 
 import org.apache.spark.h2o.H2OContext
+import org.apache.spark.h2o.backends.external.ExternalReadConverterCtx
 import org.apache.spark.h2o.utils.ProductType
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{Partition, TaskContext}
@@ -85,12 +86,12 @@ class H2ORDD[A <: Product: TypeTag: ClassTag, T <: Frame] private(@(transient @p
     */
   override def compute(split: Partition, context: TaskContext): Iterator[A] = {
     val iterator = new H2ORDDIterator(frameKeyName, split.index)
-    ConverterUtils.getIterator[A](isExternalBackend, iterator)
+    ReadConverterCtxUtils.backendSpecificIterator[A](isExternalBackend, iterator)
   }
 
   private val jc = implicitly[ClassTag[A]].runtimeClass
 
-  private def columnReaders(rcc: ReadConverterContext) = productType.memberTypeNames map rcc.readerMapByName
+  private def columnReaders(rcc: ReadConverterCtx) = productType.memberTypeNames map rcc.readerMapByName
 
   private def opt[X](op: => Any): Option[X] = try {
     Option(op.asInstanceOf[X])

@@ -18,15 +18,15 @@
 package org.apache.spark.h2o.converters
 
 /**
-  * Methods which each WriteConverterContext has to implement.
+  * Methods which each WriteConverterCtx has to implement.
   *
   * Write Converter Context is a class which holds the state of connection/chunks and allows us to write/upload to those chunks
   * via unified API
   */
-trait WriteConverterContext {
+trait WriteConverterCtx {
   def createChunks(keyName: String, vecTypes: Array[Byte], chunkId: Int)
   def closeChunks()
- 
+
   def put(colIdx: Int, data: Boolean)
   def put(colIdx: Int, data: Byte)
   def put(colIdx: Int, data: Char)

@@ -17,7 +17,8 @@
 
 package org.apache.spark.h2o.backends.external
 
-import org.apache.spark.h2o.converters.ReadConverterContext
+
+import org.apache.spark.h2o.converters.ReadConverterCtx
 import org.apache.spark.h2o.utils.NodeDesc
 import water.ExternalFrameReaderClient
 /**
@@ -26,9 +27,9 @@ import water.ExternalFrameReaderClient
   * @param chunkIdx chunk index
   * @param nodeDesc the h2o node which has data for chunk with the chunkIdx
   */
-class ExternalReadConverterContext(override val keyName: String, override val chunkIdx: Int,
-                                    val nodeDesc: NodeDesc, expectedTypes: Array[Byte], selectedColumnIndices: Array[Int])
-  extends ExternalBackendUtils with ReadConverterContext {
+class ExternalReadConverterCtx(override val keyName: String, override val chunkIdx: Int,
+                               val nodeDesc: NodeDesc, expectedTypes: Array[Byte], selectedColumnIndices: Array[Int])
+  extends ReadConverterCtx {
   override type DataSource = ExternalFrameReaderClient
 
   private val socketChannel = ConnectionToH2OHelper.getOrCreateConnection(nodeDesc)
@@ -42,7 +43,7 @@ class ExternalReadConverterContext(override val keyName: String, override val ch
   override def numRows: Int = numOfRows
 
   override def returnOption[T](read: DataSource => T)(columnNum: Int): Option[T] = {
-    Option(read(externalFrameReader)).filter(!externalFrameReader.isLastNA)
+    Option(read(externalFrameReader)).filter( _ => !externalFrameReader.isLastNA)
   }
 
   override def returnSimple[T](ifMissing: String => T, read: DataSource => T)(columnNum: Int): T = {

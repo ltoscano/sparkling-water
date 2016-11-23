@@ -18,11 +18,11 @@
 package org.apache.spark.h2o.backends.external
 
 import org.apache.spark.h2o._
-import org.apache.spark.h2o.converters.WriteConverterContext
+import org.apache.spark.h2o.converters.WriteConverterCtx
 import org.apache.spark.h2o.utils.NodeDesc
 import water.ExternalFrameWriterClient
 
-class ExternalWriteConverterContext(nodeDesc: NodeDesc, totalNumOfRows: Int) extends ExternalBackendUtils with WriteConverterContext {
+class ExternalWriteConverterCtx(nodeDesc: NodeDesc, totalNumOfRows: Int) extends WriteConverterCtx {
 
   val socketChannel = ConnectionToH2OHelper.getOrCreateConnection(nodeDesc)
   val externalFrameWriter = new ExternalFrameWriterClient(socketChannel)
@@ -56,7 +56,7 @@ class ExternalWriteConverterContext(nodeDesc: NodeDesc, totalNumOfRows: Int) ext
 }
 
 
-object ExternalWriteConverterContext extends ExternalBackendUtils{
+object ExternalWriteConverterCtx extends ExternalBackendUtils {
 
   def scheduleUpload[T](rdd: RDD[T]): (RDD[T], Map[Int, NodeDesc]) = {
     val nodes = cloudMembers

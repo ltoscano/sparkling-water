@@ -25,12 +25,12 @@ import org.apache.spark.unsafe.types.UTF8String
 import scala.language.postfixOps
 
 /**
-  * Methods which each ReadConverterContext has to implement.
+  * Methods which each ReadConverterCtx has to implement.
   *
   * Read Converter Context is a class which holds the state of connection/chunks and allows us to read/download data from those chunks
   * via unified API
   */
-trait ReadConverterContext {
+trait ReadConverterCtx {
 
   /** Type from which we query the data */
   type DataSource
@@ -132,6 +132,5 @@ trait ReadConverterContext {
   lazy val readerMapByName: Map[NameOfType, Reader] = (OptionReaders ++ SimpleReaders) map {
     case (supportedType, reader) => supportedType.name -> reader
   } toMap
-
 
 }

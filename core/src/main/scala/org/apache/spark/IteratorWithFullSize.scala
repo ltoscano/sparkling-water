@@ -3,7 +3,7 @@ package org.apache.spark
 /**
   * This class wraps an iterator and returns number of processed elements instead of number of elements left
   */
-private[this] class IteratorWithFullSize[T](it: Iterator[T]) extends Iterator[T]{
+class IteratorWithFullSize[T] private(it: Iterator[T]) extends Iterator[T]{
   private var processedElements = 0
 
   override def hasNext: Boolean = it.hasNext

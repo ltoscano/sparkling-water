@@ -28,7 +28,7 @@ import scala.collection.immutable
 import scala.language.implicitConversions
 import scala.reflect.runtime.universe._
 
-private[converters] object PrimitiveRDDConverter extends Logging with ConverterUtils{
+private[converters] object PrimitiveRDDConverter extends Logging{
 
   def toH2OFrame[T: TypeTag](hc: H2OContext, rdd: RDD[T], frameKeyName: Option[String]): H2OFrame = {
     import ReflectionUtils._
@@ -46,7 +46,7 @@ private[converters] object PrimitiveRDDConverter extends Logging with ConverterU
       ExternalFrameUtils.prepareExpectedTypes(Array[Class[_]](clazz))
     }
 
-    convert[T](hc, rdd, keyName, fnames, expectedTypes, perPrimitiveRDDPartition())
+    WriteConverterCtxUtils.convert[T](hc, rdd, keyName, fnames, expectedTypes, perPrimitiveRDDPartition())
   }
 
 
@@ -66,8 +66,8 @@ private[converters] object PrimitiveRDDConverter extends Logging with ConverterU
                                  (keyName: String, vecTypes: Array[Byte], uploadPlan: Option[immutable.Map[Int, NodeDesc]]) // general arguments
                                  (context: TaskContext, it: Iterator[T]): (Int, Long) = { // arguments and return types needed for spark's runJob input
 
-    val (iterator, dataSize) = ConverterUtils.bufferedIteratorWithSize(uploadPlan, it)
-    val con = ConverterUtils.getWriteConverterContext(uploadPlan, context.partitionId(), dataSize)
+    val (iterator, dataSize) = WriteConverterCtxUtils.bufferedIteratorWithSize(uploadPlan, it)
+    val con = WriteConverterCtxUtils.create(uploadPlan, context.partitionId(), dataSize)
     con.createChunks(keyName, vecTypes, context.partitionId())
     iterator.foreach {
       case n: Boolean => con.put(0, n)

@@ -27,7 +27,7 @@ import scala.language.{implicitConversions, postfixOps}
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
 
-private[h2o] object ProductRDDConverter extends Logging with ConverterUtils {
+private[h2o] object ProductRDDConverter extends Logging {
 
   /** Transform H2OFrame to Product RDD */
   def toRDD[A <: Product : TypeTag : ClassTag, T <: Frame](hc: H2OContext, fr: T): H2ORDD[A, T] = {
@@ -49,8 +49,7 @@ private[h2o] object ProductRDDConverter extends Logging with ConverterUtils {
     // Collect H2O vector types for all input types
     val vecTypes = ftypes.map(ReflectionUtils.vecTypeFor)
 
-    convert[T](hc, rdd, keyName, fnames, vecTypes, H2OFrameFromRDDProductBuilder.perTypedDataPartition())
-
+    WriteConverterCtxUtils.convert[T](hc, rdd, keyName, fnames, vecTypes, H2OFrameFromRDDProductBuilder.perTypedDataPartition())
   }
 }
 
