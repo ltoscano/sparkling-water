@@ -22,7 +22,6 @@ import java.nio.channels.ByteChannel
 import org.apache.spark.h2o.utils.NodeDesc
 import water.ExternalFrameUtils
 
-import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 /**
@@ -30,68 +29,65 @@ import scala.collection.mutable
   */
 object ConnectionToH2OHelper {
 
-  // since one executor can work on multiple tasks at the same time it can also happen that it needs
-  // to communicate with the same node using 2 or more connections at the given time. For this we use
-  // this helper which internally stores connections to one node and remember which ones are being used and which
-  // ones are free. Programmer then can get connection using getAvailableConnection. This method creates a new connection
-  // if all connections are currently used or reuse the existing free one. Programmer needs to put the connection back to the
-  // pool of available connections using the method putAvailableConnection
+
+  /**
+    * since one executor can work on multiple tasks at the same time it can also happen that it needs
+    * to communicate with the same node using 2 or more connections at the given time. For this we use
+    * this helper which internally stores connections to one node and remember which ones are being used and which
+    * ones are free. Programmer then can get connection using getAvailableConnection. This method creates a new connection
+    * if all connections are currently used or reuse the existing free one. Programmer needs to put the connection back to the
+    * pool of available connections using the method putAvailableConnection
+    */
   private class PerOneNodeConnection(val nodeDesc: NodeDesc) {
 
-    private def getConnection(nodeDesc: NodeDesc): ByteChannel= {
+    private def getConnection(nodeDesc: NodeDesc): ByteChannel = {
       ExternalFrameUtils.getConnection(nodeDesc.hostname, nodeDesc.port)
     }
-    // ordered list of connections where the available connections are at the start of the list and the used at the end.
-    private val availableConnections = new java.util.concurrent.ConcurrentLinkedQueue[(ByteChannel, Long)]()
+
+    // Stack ( = last in first out ) so the connection which is in the list longest is selected first
+    private var availableConnections = new mutable.Stack[(ByteChannel, Long)]()
+
     def availableConnection: ByteChannel = {
-      if(availableConnections.isEmpty){
-        getConnection(nodeDesc)
-      }else{
-        val socketChannel = availableConnections.poll()._1
-        if(!socketChannel.isOpen){
-          // connection closed, open a new one to replace it
-          getConnection(nodeDesc)
-        }else{
-          socketChannel
+
+      var channelToReturn: Option[ByteChannel] = None
+      while (availableConnections.nonEmpty && channelToReturn.isEmpty) {
+        val channel = availableConnections.pop()._1
+        if (channel.isOpen) {
+          channelToReturn = Some(channel)
         }
       }
+      channelToReturn.getOrElse(getConnection(nodeDesc))
     }
 
-
-
     def putAvailableConnection(sock: ByteChannel): Unit = {
-      availableConnections.add((sock, System.currentTimeMillis()))
+      availableConnections.push((sock, System.currentTimeMillis()))
+      val idleConnectionTimeout = 1000 // 1 second
 
-      // after each put start this cleaning thread
-      val waitTime = 1000 // 1 second
-      new Thread(){
-        override def run(): Unit = {
-          Thread.sleep(waitTime)
-          availableConnections.asScala.filter{
-          case (socket, lastTimeUsed) =>  if (System.currentTimeMillis() - lastTimeUsed > waitTime) {
-            socket.close()
-            false
-          }else{
-            true
-          }
+      // filter the available connections
+      // return only non-closed connections
+      availableConnections = availableConnections.filter { case (socket, lastTimeUsed) =>
+        if (System.currentTimeMillis() - lastTimeUsed > idleConnectionTimeout) {
+          socket.close()
+          false
+        } else {
+          true
         }
-        }
-      }.start()
+      }
     }
   }
 
   // this map is created in each executor so we don't have to specify executor Id
   private[this] val connectionMap = mutable.HashMap.empty[NodeDesc, PerOneNodeConnection]
 
-  def getOrCreateConnection(nodeDesc: NodeDesc): ByteChannel = connectionMap.synchronized{
-    if(!connectionMap.contains(nodeDesc)){
+  def getOrCreateConnection(nodeDesc: NodeDesc): ByteChannel = connectionMap.synchronized {
+    if (!connectionMap.contains(nodeDesc)) {
       connectionMap += nodeDesc -> new PerOneNodeConnection(nodeDesc)
     }
     connectionMap(nodeDesc).availableConnection
   }
 
-  def putAvailableConnection(nodeDesc: NodeDesc, sock: ByteChannel): Unit = connectionMap.synchronized{
-    if(!connectionMap.contains(nodeDesc)){
+  def putAvailableConnection(nodeDesc: NodeDesc, sock: ByteChannel): Unit = connectionMap.synchronized {
+    if (!connectionMap.contains(nodeDesc)) {
       connectionMap += nodeDesc -> new PerOneNodeConnection(nodeDesc)
     }
     connectionMap(nodeDesc).putAvailableConnection(sock)

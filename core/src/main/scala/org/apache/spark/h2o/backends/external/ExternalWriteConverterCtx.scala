@@ -17,8 +17,6 @@
 
 package org.apache.spark.h2o.backends.external
 
-import java.io.IOException
-
 import org.apache.spark.h2o._
 import org.apache.spark.h2o.converters.WriteConverterCtx
 import org.apache.spark.h2o.utils.NodeDesc
