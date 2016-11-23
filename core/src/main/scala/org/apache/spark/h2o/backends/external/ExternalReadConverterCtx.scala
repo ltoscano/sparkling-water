@@ -34,13 +34,8 @@ class ExternalReadConverterCtx(override val keyName: String, override val chunkI
 
   private val socketChannel = ConnectionToH2OHelper.getOrCreateConnection(nodeDesc)
   val externalFrameReader = new ExternalFrameReaderClient(socketChannel, keyName, chunkIdx, selectedColumnIndices, expectedTypes)
-
-  // Ee can't do this field lazy right away
-  // the reader api expects us to read number of rows as the first read after creating external frame reader and we need
-  // to ensure we do so
-  private val numOfRows: Int = externalFrameReader.getNumRows
-
-  override def numRows: Int = numOfRows
+  
+  override def numRows: Int = externalFrameReader.getNumRows
 
   override def returnOption[T](read: DataSource => T)(columnNum: Int): Option[T] = {
     Option(read(externalFrameReader)).filter( _ => !externalFrameReader.isLastNA)
