@@ -18,7 +18,7 @@
 package org.apache.spark.h2o.utils
 
 import org.apache.spark.SparkConf
-import org.apache.spark.h2o.backends.SharedH2OConf._
+import org.apache.spark.h2o.backends.SharedBackendConf._
 import org.scalatest.Suite
 
 import scala.sys.process.Process
@@ -32,18 +32,14 @@ trait ExternalClusterModeTestHelper {
 
   @transient var nodeProcesses: Seq[Process] = _
 
-  lazy val swJar = sys.props.getOrElse("sparkling.assembly.jar", if(sys.env.get("sparkling.assembly.jar").isDefined){
-    sys.env("sparkling.assembly.jar")
-  } else{
+  lazy val swJar = sys.props.getOrElse("sparkling.assembly.jar", sys.env.getOrElse("sparkling.assembly.jar",
     fail("sparkling.assembly.jar environment variable is not set! It should point to the location of sparkling-water" +
-      " assembly JAR")
-  })
+    " assembly JAR")))
 
-  lazy val h2oJar = sys.props.getOrElse("H2O_JAR", if (sys.env.get("H2O_JAR").isDefined) {
-    sys.env("H2O_JAR")
-  } else {
-    fail("H2O_JAR environment variable is not set! It should point to the location of H2O assembly jar file")
-  })
+  lazy val h2oJar = sys.props.getOrElse("H2O_JAR", sys.env.get("H2O_JAR").getOrElse("H2O_JAR",
+    fail("H2O_JAR environment variable is not set! It should point to the location of H2O assembly jar file")))
+
+  lazy val clusterStartTimeout = sys.props.getOrElse("cluster.start.timeout", sys.env.getOrElse("cluster.start.timeout", "6000")).toInt
 
   def uniqueCloudName(customPart: String) = s"sparkling-water-$customPart-${Random.nextInt()}"
 
@@ -55,8 +51,8 @@ trait ExternalClusterModeTestHelper {
 
   def startCloud(cloudSize: Int, cloudName: String, ip: String): Unit = {
     nodeProcesses = (1 to cloudSize).map { _ => launchSingle(cloudName, ip) }
-    // Wait 2 seconds to ensure that h2o nodes are created earlier than h2o client
-    Thread.sleep(2000)
+    // Wait 6 seconds to ensure that h2o nodes are created earlier than h2o client
+    Thread.sleep(clusterStartTimeout)
   }
 
   def startCloud(cloudSize: Int, sparkConf: SparkConf): Unit = {

@@ -6,7 +6,7 @@ import java.net.InetAddress
 
 import org.apache.spark.h2o.FunSuiteWithLogging
 
-import org.apache.spark.h2o.backends.SharedH2OConf._
+import org.apache.spark.h2o.backends.SharedBackendConf._
 import org.apache.spark.h2o.backends.external.ExternalBackendConf
 import org.apache.spark.h2o.utils.ExternalClusterModeTestHelper
 

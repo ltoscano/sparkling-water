@@ -38,7 +38,7 @@ class ExternalReadConverterCtx(override val keyName: String, override val chunkI
   // Ee can't do this field lazy right away
   // the reader api expects us to read number of rows as the first read after creating external frame reader and we need
   // to ensure we do so
-  private val numOfRows: Int =  externalFrameReader.getNumRows
+  private val numOfRows: Int = externalFrameReader.getNumRows
 
   override def numRows: Int = numOfRows
 

@@ -2,7 +2,7 @@ package water.sparkling.itest
 
 import java.net.InetAddress
 
-import org.apache.spark.h2o.backends.SharedH2OConf
+import org.apache.spark.h2o.backends.SharedBackendConf$
 import org.apache.spark.h2o.backends.external.ExternalBackendConf
 import org.apache.spark.h2o.utils.ExternalClusterModeTestHelper
 import org.scalatest.{BeforeAndAfterEach, Suite, Tag}
@@ -65,15 +65,15 @@ trait IntegTestHelper extends BeforeAndAfterEach with ExternalClusterModeTestHel
     super.beforeEach()
     testEnv = new TestEnvironment
     val cloudName = uniqueCloudName("integ-tests")
-    testEnv.sparkConf += SharedH2OConf.PROP_CLOUD_NAME._1 -> cloudName
-    testEnv.sparkConf += SharedH2OConf.PROP_CLIENT_IP._1 -> InetAddress.getLocalHost.getHostAddress
+    testEnv.sparkConf += SharedBackendConf.PROP_CLOUD_NAME._1 -> cloudName
+    testEnv.sparkConf += SharedBackendConf.PROP_CLIENT_IP._1 -> InetAddress.getLocalHost.getHostAddress
     val cloudSize = 2
     testEnv.sparkConf += ExternalBackendConf.PROP_EXTERNAL_H2O_NODES._1 -> cloudSize.toString
     if(testsInExternalMode()){
-      testEnv.sparkConf += SharedH2OConf.PROP_BACKEND_CLUSTER_MODE._1 -> "external"
+      testEnv.sparkConf += SharedBackendConf.PROP_BACKEND_CLUSTER_MODE._1 -> "external"
       startCloud(cloudSize, cloudName, InetAddress.getLocalHost.getHostAddress)
     }else{
-      testEnv.sparkConf += SharedH2OConf.PROP_BACKEND_CLUSTER_MODE._1 -> "internal"
+      testEnv.sparkConf += SharedBackendConf.PROP_BACKEND_CLUSTER_MODE._1 -> "internal"
     }
   }
 

@@ -18,12 +18,12 @@
 package org.apache.spark.h2o.backends.external
 
 import org.apache.spark.h2o.H2OConf
-import org.apache.spark.h2o.backends.SharedH2OConf
+import org.apache.spark.h2o.backends.SharedBackendConf
 
 /**
   * External backend configuration
   */
-trait ExternalBackendConf extends SharedH2OConf {
+trait ExternalBackendConf extends SharedBackendConf {
   self: H2OConf =>
 
   import ExternalBackendConf._
@@ -130,5 +130,4 @@ object ExternalBackendConf {
 
   /** Number of nodes to wait for when connecting to external H2O cluster */
   val PROP_EXTERNAL_H2O_NODES = ("spark.ext.h2o.external.cluster.num.h2o.nodes", null.asInstanceOf[String])
-
 }
