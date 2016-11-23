@@ -126,6 +126,8 @@ class ExternalH2OBackend(val hc: H2OContext) extends SparklingBackend with Exter
   }
 
   override def stop(stopSparkContext: Boolean): Unit = {
+    // stop only when we have external h2o cluster running on yarn
+    // otherwise stopping is not supported
     if(hc.getConf.HDFSOutputDir.isDefined){
       try {
         val hdfs = org.apache.hadoop.fs.FileSystem.get(hc.sparkContext.hadoopConfiguration)
@@ -136,7 +138,7 @@ class ExternalH2OBackend(val hc: H2OContext) extends SparklingBackend with Exter
       }
       import scala.sys.process._
       // kill the job
-      Seq[String]("yarn", "application", "-kill", yarnAppId).mkString(" ").!
+      s"yarn application -kill $yarnAppId".!
 
       //if (stopSparkContext) hc.sparkContext.stop()
       //H2O.orderlyShutdown(1000)
