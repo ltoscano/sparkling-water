@@ -66,11 +66,10 @@ private[converters] object PrimitiveRDDConverter extends Logging with ConverterU
                                  (keyName: String, vecTypes: Array[Byte], uploadPlan: Option[immutable.Map[Int, NodeDesc]]) // general arguments
                                  (context: TaskContext, it: Iterator[T]): (Int, Long) = { // arguments and return types needed for spark's runJob input
 
-    val asArr = it.toArray[Any] // need to buffer the iterator in order to get its length
-    val con = ConverterUtils.getWriteConverterContext(uploadPlan, context.partitionId())
-    con.createChunks(keyName, vecTypes, context.partitionId(), asArr.length)
-
-    asArr.foreach {
+    val (iterator, dataSize) = ConverterUtils.bufferedIteratorWithSize(uploadPlan, it)
+    val con = ConverterUtils.getWriteConverterContext(uploadPlan, context.partitionId(), dataSize)
+    con.createChunks(keyName, vecTypes, context.partitionId())
+    iterator.foreach {
       case n: Boolean => con.put(0, n)
       case n: Byte => con.put(0, n)
       case n: Char => con.put(0, n)
@@ -87,7 +86,7 @@ private[converters] object PrimitiveRDDConverter extends Logging with ConverterU
     con.closeChunks()
 
     // Return Partition number and number of rows in this partition
-    (context.partitionId, asArr.length)
+    (context.partitionId, iterator.size)
   }
 
 }

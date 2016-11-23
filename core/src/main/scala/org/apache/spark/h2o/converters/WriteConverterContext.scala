@@ -24,7 +24,7 @@ package org.apache.spark.h2o.converters
   * via unified API
   */
 trait WriteConverterContext {
-  def createChunks(keyName: String, vecTypes: Array[Byte], chunkId: Int, totalNumOfRows: Int)
+  def createChunks(keyName: String, vecTypes: Array[Byte], chunkId: Int)
   def closeChunks()
  
   def put(colIdx: Int, data: Boolean)

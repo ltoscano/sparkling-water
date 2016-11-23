@@ -18,7 +18,7 @@
 package org.apache.spark.h2o.converters
 
 
-import org.apache.spark.TaskContext
+import org.apache.spark.{IteratorWithFullSize, TaskContext}
 import org.apache.spark.h2o._
 import org.apache.spark.h2o.backends.external.{ExternalReadConverterContext, ExternalWriteConverterContext}
 import org.apache.spark.h2o.backends.internal.{InternalReadConverterContext, InternalWriteConverterContext}
@@ -110,37 +110,28 @@ private[converters] trait ConverterUtils {
 
 object ConverterUtils extends ConverterUtils {
 
+  type UploadPlan = Option[immutable.Map[Int, NodeDesc]]
   // TODO(vlad): clean this up
   type SparkJob[T] = (TaskContext, Iterator[T]) => (Int, Long)
 
   type ConversionFunction[T] = (String, Array[Byte], Option[immutable.Map[Int, NodeDesc]]) => SparkJob[T]
 
 
-  def getWriteConverterContext(uploadPlan: Option[immutable.Map[Int, NodeDesc]],
-                               partitionId: Int): WriteConverterContext = {
-    val converterContext = if (uploadPlan.isDefined) {
-      new ExternalWriteConverterContext(uploadPlan.get(partitionId))
-    } else {
-      new InternalWriteConverterContext()
-    }
-    converterContext
+  def getWriteConverterContext(uploadPlan: UploadPlan,
+                               partitionId: Int, totalNumOfRows: Option[Int]): WriteConverterContext = {
+    uploadPlan
+      .map{plan => new ExternalWriteConverterContext(uploadPlan.get(partitionId), totalNumOfRows.get)}
+      .getOrElse( new InternalWriteConverterContext())
   }
 
   def getReadConverterContext(keyName: String, chunkIdx: Int,
-                              extra: Option[ExternalBackendInfo]): ReadConverterContext = {
-    val converterContext = if (extra.isDefined) {
-      // metainfo external cluster is not empty => use external cluster
-      new ExternalReadConverterContext(keyName, chunkIdx, extra.get.chksLocation(chunkIdx), extra.get.expectedTypes, extra.get.selectedColumnIndices)
-    } else {
-      new InternalReadConverterContext(keyName, chunkIdx)
-    }
-    converterContext
-  }
+                              chksLocation: Option[Array[NodeDesc]],
+                              expectedTypes : Option[Array[Byte]],
+                              selectedColumnIndices: Array[Int]): ReadConverterContext = {
 
-  def getReadConverterContext(keyName: String,
-                              chunkIdx: Int): ReadConverterContext = {
-    val converterContext = new InternalReadConverterContext(keyName, chunkIdx)
-    converterContext
+    chksLocation.map(loc => new ExternalReadConverterContext(keyName, chunkIdx, loc(chunkIdx), expectedTypes.get, selectedColumnIndices))
+     .getOrElse(new InternalReadConverterContext(keyName, chunkIdx))
+
   }
 
   // TODO(vlad): get rid of boolean; rename; get rid of mutability probably
@@ -159,21 +150,16 @@ object ConverterUtils extends ConverterUtils {
     }
   }
 
-}
-
-class ExternalBackendInfo private (val chksLocation: Array[NodeDesc],
-                                   val expectedTypes: Array[Byte],
-                                   val selectedColumnIndices: Array[Int])
-
-object ExternalBackendInfo{
-  def apply(chksLocation: Option[Array[NodeDesc]], expectedTypes: Option[Array[Byte]],
-            selectedColumnIndices: Array[Int]): Option[ExternalBackendInfo] = {
-
-    if(chksLocation.isDefined){
-      Some(new ExternalBackendInfo(chksLocation.get, expectedTypes.get,  selectedColumnIndices))
-    }else{
-      None
-    }
+  /**
+    * This method is used for writing data from spark partitions to h2o chunks.
+    *
+    * In case of internal backend it returns the original iterator and empty length because we do not need it
+    * In case of external backend it returns new iterator with the same data and the length of the data
+    */
+  def bufferedIteratorWithSize[T](uploadPlan: UploadPlan, original: Iterator[T]): (Iterator[T], Option[Int]) = {
+    uploadPlan.map{ _ =>
+      val buffered = original.toList
+      (IteratorWithFullSize(buffered.iterator), Some(buffered.size))
+    }.getOrElse((IteratorWithFullSize(original), None))
   }
 }
-

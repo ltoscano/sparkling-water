@@ -43,7 +43,7 @@ object ConnectionToH2OHelper {
     }
     // ordered list of connections where the available connections are at the start of the list and the used at the end.
     private val availableConnections = new java.util.concurrent.ConcurrentLinkedQueue[(ByteChannel, Long)]()
-    def getAvailableConnection(): ByteChannel = {
+    def availableConnection: ByteChannel = {
       if(availableConnections.isEmpty){
         getConnection(nodeDesc)
       }else{
@@ -87,7 +87,7 @@ object ConnectionToH2OHelper {
     if(!connectionMap.contains(nodeDesc)){
       connectionMap += nodeDesc -> new PerOneNodeConnection(nodeDesc)
     }
-    connectionMap(nodeDesc).getAvailableConnection()
+    connectionMap(nodeDesc).availableConnection
   }
 
   def putAvailableConnection(nodeDesc: NodeDesc, sock: ByteChannel): Unit = connectionMap.synchronized{

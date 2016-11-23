@@ -48,11 +48,8 @@ private[converters] object LabeledPointConverter extends Logging with ConverterU
 
     // in case of internal backend, store regular vector types
     // otherwise for external backend store expected types
-    val expectedTypes = if(hc.getConf.runsInInternalClusterMode){
-      Array.fill(maxNumFeatures + 1)(Vec.T_NUM)
-    }else{
-      Array.fill(maxNumFeatures + 1)(ExternalFrameUtils.EXPECTED_DOUBLE)
-    }
+    val expectedTypes = if(hc.getConf.runsInInternalClusterMode) Vec.T_NUM else ExternalFrameUtils.EXPECTED_DOUBLE
+    Array.fill(maxNumFeatures + 1)(expectedTypes)
 
 
     convert[LabeledPoint](hc, rdd, keyName, fnames, expectedTypes, perLabeledPointRDDPartition(maxNumFeatures))
@@ -72,13 +69,12 @@ private[converters] object LabeledPointConverter extends Logging with ConverterU
   def perLabeledPointRDDPartition(maxNumFeatures: Int)
                                  (keyName: String, vecTypes: Array[Byte], uploadPlan: Option[immutable.Map[Int, NodeDesc]])
                                  (context: TaskContext, it: Iterator[LabeledPoint]): (Int, Long) = {
-    val asArr = it.toArray[LabeledPoint] // need to buffer the iterator in order to get its length
-    val con = ConverterUtils.getWriteConverterContext(uploadPlan, context.partitionId())
-
+    val (iterator, dataSize) = ConverterUtils.bufferedIteratorWithSize(uploadPlan, it)
+    val con = ConverterUtils.getWriteConverterContext(uploadPlan, context.partitionId(), dataSize)
     // Creates array of H2O NewChunks; A place to record all the data in this partition
-    con.createChunks(keyName, vecTypes, context.partitionId(), asArr.length)
+    con.createChunks(keyName, vecTypes, context.partitionId())
 
-    asArr.foreach(labeledPoint => {
+    iterator.foreach(labeledPoint => {
       // For all LabeledPoints in RDD
       var nextChunkId = 0
 
@@ -103,6 +99,6 @@ private[converters] object LabeledPointConverter extends Logging with ConverterU
     con.closeChunks()
 
     // Return Partition number and number of rows in this partition
-    (context.partitionId, asArr.length)
+    (context.partitionId, iterator.length)
   }
 }

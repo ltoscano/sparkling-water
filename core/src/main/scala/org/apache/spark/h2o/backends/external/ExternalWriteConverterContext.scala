@@ -22,7 +22,7 @@ import org.apache.spark.h2o.converters.WriteConverterContext
 import org.apache.spark.h2o.utils.NodeDesc
 import water.ExternalFrameWriterClient
 
-class ExternalWriteConverterContext(nodeDesc: NodeDesc) extends ExternalBackendUtils with WriteConverterContext {
+class ExternalWriteConverterContext(nodeDesc: NodeDesc, totalNumOfRows: Int) extends ExternalBackendUtils with WriteConverterContext {
 
   val socketChannel = ConnectionToH2OHelper.getOrCreateConnection(nodeDesc)
   val externalFrameWriter = new ExternalFrameWriterClient(socketChannel)
@@ -38,7 +38,7 @@ class ExternalWriteConverterContext(nodeDesc: NodeDesc) extends ExternalBackendU
   /**
     * Initialize the communication before the chunks are created
     */
-  override def createChunks(keystr: String, expectedTypes: Array[Byte], chunkId: Int, totalNumOfRows: Int): Unit = {
+  override def createChunks(keystr: String, expectedTypes: Array[Byte], chunkId: Int): Unit = {
     externalFrameWriter.createChunks(keystr, expectedTypes, chunkId, totalNumOfRows)
   }
 

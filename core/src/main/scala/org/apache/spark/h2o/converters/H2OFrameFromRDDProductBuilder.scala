@@ -101,13 +101,13 @@ object H2OFrameFromRDDProductBuilder{
   private[converters] def perTypedDataPartition[T<:Product]()
                                                            (keyName: String, vecTypes: Array[Byte], uploadPlan: Option[immutable.Map[Int, NodeDesc]])
                                                            (context: TaskContext, it: Iterator[T]): (Int, Long) = {
-    val asArr = it.toArray[Product] // need to buffer the iterator in order to get its length
+    val (iterator, dataSize) = ConverterUtils.bufferedIteratorWithSize(uploadPlan, it)
     // An array of H2O NewChunks; A place to record all the data in this partition
-    val con = ConverterUtils.getWriteConverterContext(uploadPlan, context.partitionId())
+    val con = ConverterUtils.getWriteConverterContext(uploadPlan, context.partitionId(), dataSize)
 
-    con.createChunks(keyName, vecTypes, context.partitionId(), asArr.length)
+    con.createChunks(keyName, vecTypes, context.partitionId())
 
-    asArr.foreach(prod => { // For all rows which are subtype of Product
+    iterator.foreach(prod => { // For all rows which are subtype of Product
       for( i <- 0 until prod.productArity ) { // For all fields...
       val fld = prod.productElement(i)
         val x = fld match {
@@ -133,6 +133,6 @@ object H2OFrameFromRDDProductBuilder{
     con.closeChunks()
 
     // Return Partition number and number of rows in this partition
-    (context.partitionId, asArr.length)
+    (context.partitionId, iterator.length)
   }
 }

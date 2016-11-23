@@ -69,7 +69,7 @@ private[converters] trait H2ORDDLike[T <: Frame] {
         partIndex,
         // we need to send list of all expected types, not only the list filtered for expected columns
         // because on the h2o side we get the expected type using index from selectedColumnIndices array
-        ExternalBackendInfo(chksLocation, expectedTypes, selectedColumnIndices)
+        chksLocation, expectedTypes, selectedColumnIndices
       )
 
     override def hasNext: Boolean = converterCtx.hasNext

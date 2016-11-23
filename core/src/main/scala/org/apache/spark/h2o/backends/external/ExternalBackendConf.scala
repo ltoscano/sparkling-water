@@ -57,21 +57,11 @@ trait ExternalBackendConf extends SharedH2OConf {
   }
 
   def h2oClusterHost = {
-    val value = sparkConf.getOption(PROP_EXTERNAL_CLUSTER_REPRESENTATIVE._1)
-    if (value.isDefined) {
-      Option(value.get.split(":")(0))
-    } else {
-      None
-    }
+    sparkConf.getOption(PROP_EXTERNAL_CLUSTER_REPRESENTATIVE._1).map(_.split(":")(0))
   }
 
   def h2oClusterPort = {
-    val value = sparkConf.getOption(PROP_EXTERNAL_CLUSTER_REPRESENTATIVE._1)
-    if (value.isDefined) {
-      Option(value.get.split(":")(1))
-    } else {
-      None
-    }
+    sparkConf.getOption(PROP_EXTERNAL_CLUSTER_REPRESENTATIVE._1).map(_.split(":")(1))
   }
 
 

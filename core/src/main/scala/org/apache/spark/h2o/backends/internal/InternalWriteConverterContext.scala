@@ -24,7 +24,7 @@ import water.fvec.{FrameUtils, NewChunk}
 
 class InternalWriteConverterContext extends WriteConverterContext{
   private var chunks: Array[NewChunk] = _
-  override def createChunks(keyName: String, vecTypes: Array[Byte], chunkId: Int, totalNumRows: Int): Unit = {
+  override def createChunks(keyName: String, vecTypes: Array[Byte], chunkId: Int): Unit = {
    chunks = FrameUtils.createNewChunks(keyName, vecTypes, chunkId)
   }
 

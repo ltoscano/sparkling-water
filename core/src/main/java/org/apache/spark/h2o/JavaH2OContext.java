@@ -31,8 +31,6 @@ import water.Key;
 import water.fvec.Frame;
 import water.fvec.H2OFrame;
 
-import java.io.Serializable;
-
 /**
  * A Java-friendly version of [[org.apache.spark.h2o.H2OContext]]
  *
@@ -48,7 +46,7 @@ import java.io.Serializable;
  * can be set in H2O configuration class H2OConf
  *
  */
-public class JavaH2OContext implements Serializable {
+public class JavaH2OContext {
 /*
 Note for developers: This class is not written in scala intentionally as we want to have static method getOrCreate on
 the class itself and not on class generated from the object ( like H2OContext$). This way the functionality and API
