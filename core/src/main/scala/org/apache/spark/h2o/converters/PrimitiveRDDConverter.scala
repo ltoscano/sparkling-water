@@ -69,22 +69,9 @@ private[converters] object PrimitiveRDDConverter extends Logging{
     val (iterator, dataSize) = WriteConverterCtxUtils.bufferedIteratorWithSize(uploadPlan, it)
     val con = WriteConverterCtxUtils.create(uploadPlan, context.partitionId(), dataSize)
     con.createChunks(keyName, vecTypes, context.partitionId())
-    iterator.foreach {
-      case n: Boolean => con.put(0, n)
-      case n: Byte => con.put(0, n)
-      case n: Char => con.put(0, n)
-      case n: Short => con.put(0, n)
-      case n: Int => con.put(0, n)
-      case n: Long => con.put(0, n)
-      case n: Float => con.put(0, n)
-      case n: Double => con.put(0, n)
-      case n: String => con.put(0, n)
-      case n: java.sql.Timestamp => con.put(0, n)
-      case _ => con.putNA(0)
-    }
+    iterator.foreach {con.putAnySupportedType(0, _)}
     //Compress & write data in partitions to H2O Chunks
     con.closeChunks()
-
     // Return Partition number and number of rows in this partition
     (context.partitionId, iterator.size)
   }

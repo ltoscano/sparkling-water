@@ -114,19 +114,7 @@ object H2OFrameFromRDDProductBuilder{
           case Some(n) => n
           case _ => fld
         }
-        x match {
-          case n: Boolean => con.put(i, n)
-          case n: Byte => con.put(i, n)
-          case n: Char => con.put(i, n)
-          case n: Short => con.put(i, n)
-          case n: Int => con.put(i, n)
-          case n: Long => con.put(i, n)
-          case n: Float => con.put(i, n)
-          case n: Double => con.put(i, n)
-          case n: String  => con.put(i, n)
-          case n : java.sql.Timestamp => con.put(i, n)
-          case _ => con.putNA(i)
-        }
+        con.putAnySupportedType(i, x)
       }
     })
     //Compress & write data in partitions to H2O Chunks

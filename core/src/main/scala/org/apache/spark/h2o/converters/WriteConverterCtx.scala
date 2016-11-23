@@ -38,4 +38,21 @@ trait WriteConverterCtx {
   def put(colIdx: Int, data: java.sql.Timestamp)
   def put(colIdx: Int, data: String)
   def putNA(colIdx: Int)
+
+  def putAnySupportedType[T](colIdx: Int, data: T): Unit ={
+    data match {
+      case n: Boolean => put(colIdx, n)
+      case n: Byte => put(colIdx, n)
+      case n: Char => put(colIdx, n)
+      case n: Short => put(colIdx, n)
+      case n: Int => put(colIdx, n)
+      case n: Long => put(colIdx, n)
+      case n: Float => put(colIdx, n)
+      case n: Double => put(colIdx, n)
+      case n: String => put(colIdx, n)
+      case n: java.sql.Timestamp => put(colIdx, n)
+      case _ => putNA(colIdx)
+    }
+  }
+
 }

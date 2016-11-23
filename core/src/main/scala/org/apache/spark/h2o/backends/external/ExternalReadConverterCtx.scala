@@ -34,7 +34,7 @@ class ExternalReadConverterCtx(override val keyName: String, override val chunkI
 
   private val socketChannel = ConnectionToH2OHelper.getOrCreateConnection(nodeDesc)
   val externalFrameReader = new ExternalFrameReaderClient(socketChannel, keyName, chunkIdx, selectedColumnIndices, expectedTypes)
-  
+
   override def numRows: Int = externalFrameReader.getNumRows
 
   override def returnOption[T](read: DataSource => T)(columnNum: Int): Option[T] = {
