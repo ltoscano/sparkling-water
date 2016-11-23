@@ -50,30 +50,31 @@ class ExternalH2OBackend(val hc: H2OContext) extends SparklingBackend with Exter
     )
 
     // start external h2o cluster and log the output
-    logDebug("Command used to start H2O on yarn: " + cmdToLaunch.mkString)
+    logInfo("Command used to start H2O on yarn: " + cmdToLaunch.mkString)
     import scala.sys.process._
-    val stdout = new StringBuffer()
-    val stderr = new StringBuffer()
+    val processOut = new StringBuffer()
+    val processErr = new StringBuffer()
 
     val proc = cmdToLaunch.mkString(" ").!(ProcessLogger(
       { msg =>
-        stdout.append(msg + "\n")
+        processOut.append(msg + "\n")
         println(msg)
       }, {
         errMsg =>
-          stderr.append(errMsg + "\n")
+          processErr.append(errMsg + "\n")
+          println(errMsg)
       }))
 
-    logDebug(stdout.toString)
-    logDebug(stderr.toString)
+    logDebug(processOut.toString)
+    logDebug(processErr.toString)
 
 
     // get ip port
-    val clusterInfo = Source.fromFile(hc.getConf.clusterInfoFile.get+".tmp").getLines
+    val clusterInfo = Source.fromFile(hc.getConf.clusterInfoFile.get + ".tmp").getLines
     val ipPort = clusterInfo.next()
     yarnAppId = clusterInfo.next()
 
-    assert(proc == 0, s"Process ended with return value $proc")
+    assert(proc == 0, s"Starting external H2O cluster failed with return value $proc.")
     ipPort
   }
 
