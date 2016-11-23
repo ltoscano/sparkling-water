@@ -71,7 +71,7 @@ class H2ORDD[A <: Product: TypeTag: ClassTag, T <: Frame] private(@(transient @p
   }
 
   // Check that H2OFrame & given Scala type are compatible
-  if (!productType.isSingleton) { // Unnecessary check
+  if (!productType.isSingleton) {
     val problems = productType.members.filter { m => frame.find(m.name) == -1 } mkString ", "
 
     if (problems.nonEmpty) {
