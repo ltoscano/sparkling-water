@@ -71,9 +71,10 @@ object ReflectionUtils {
     val attr = st.members.sorted
       .filter(!_.isMethod)
         .map(s => (s.name.toString.trim, s))
-      .map( p =>
-        ProductMember(p._1, supportedTypeFor(p._2.typeSignature.substituteTypes(formalTypeArgs, actualTypeArgs)).toString)
-      )
+      .map { p =>
+        val supportedType = supportedTypeFor(p._2.typeSignature.substituteTypes(formalTypeArgs, actualTypeArgs))
+        ProductMember(p._1, supportedType.toString, supportedType.javaClass)
+      }
     attr toArray
   }
 
@@ -172,14 +173,15 @@ object ReflectionUtils {
 
 import ReflectionUtils._
 
-case class ProductMember(name: String, typeName: NameOfType) {
+case class ProductMember(name: String, typeName: NameOfType, typeClass: Class[_]) {
   override def toString = s"$name: $typeName"
 }
 
-case class ProductType(members: Array[ProductMember], types: Array[Class[_]]) {
+case class ProductType(members: Array[ProductMember]) {
   lazy val memberNames = members map (_.name)
   // We keep names, because of a Scala 10.1 bug that does not allow to serialize TypeTags.
   lazy val memberTypeNames = members map (_.typeName)
+  lazy val memberClasses = members map (_.typeClass)
 
   def arity = members.length
 
@@ -191,7 +193,6 @@ case class ProductType(members: Array[ProductMember], types: Array[Class[_]]) {
 object ProductType {
   def create[A <: Product: TypeTag: ClassTag]: ProductType = {
     val members = productMembers[A]
-    val types = ReflectionUtils.types(typeOf[A])
-    new ProductType(members, types)
+    new ProductType(members)
   }
 }

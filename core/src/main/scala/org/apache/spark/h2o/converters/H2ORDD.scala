@@ -64,7 +64,7 @@ class H2ORDD[A <: Product: TypeTag: ClassTag, T <: Frame] private(@(transient @p
     // there is no need to prepare expected types in internal backend
     if (isExternalBackend) {
       // prepare expected types for selected columns
-      Option(ExternalFrameUtils.prepareExpectedTypes(productType.types))
+      Option(ExternalFrameUtils.prepareExpectedTypes(productType.memberClasses))
     } else {
       None
     }
